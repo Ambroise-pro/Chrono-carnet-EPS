@@ -5232,132 +5232,38 @@ return null;
       exportQrHost.innerHTML =
         "";
 
-      const runner =
-        selectedExportRunner();
+      if (!running) {
+        state.runners.forEach(item => {
+          const complete = isSimple()
+            ? elapsedMs > 0
+            : isTimed()
+              ? !!timedRunFor(item.id)
+              : isChrono() && Array.from(
+                  { length: raceCount() },
+                  (_, index) => done(item.id, index + 1)
+                ).every(Boolean);
 
-      if (
-        isChronoSeries()
-      ) {
+          if (!complete) return;
+          const payload = trainingQrPayload(item);
+          if (!payload) return;
 
-        state.runners
-          .filter(
-            item =>
-              Array.from(
-                { length: raceCount() },
-                (_, index) =>
-                  done(
-                    item.id,
-                    index + 1
-                  )
-              ).every(Boolean)
-          )
-          .forEach(
-            item => {
-
-              const payload =
-                trainingQrPayload(
-                  item
-                );
-
-              if (!payload) {
-                return;
-              }
-
-              const host =
-                document
-                  .createElement(
-                    "div"
-                  );
-
-              exportQrHost
-                .appendChild(
-                  host
-                );
-
-              renderInlineQr(
-                host,
-                payload,
-                item.last.toUpperCase() +
-                " " +
-                item.first +
-                " · Série / pyramide"
-              );
-
-            }
-          );
-
-        return;
-
-      }
-
-      const canExportSimple =
-        isSimple() &&
-        !running &&
-        elapsedMs > 0;
-
-      const canExportTimed =
-        isTimed() &&
-        !running &&
-        runner &&
-        !!timedRunFor(
-          runner.id
-        );
-
-      const canExportChrono =
-        isChrono() &&
-        !running &&
-        runner &&
-        Array.from(
-          { length: raceCount() },
-          (_, index) =>
-            done(
-              runner.id,
-              index + 1
-            )
-        ).every(Boolean);
-
-      if (
-        canExportSimple ||
-        canExportTimed ||
-        canExportChrono
-      ) {
-
-        const payload =
-          trainingQrPayload(
-            runner
-          );
-
-        if (payload) {
-
-          const label =
-            isSimple()
-              ? "Chrono simple"
-              : payload.tool === "chrono"
-                ? (
-                    payload.planMode === "series"
-                      ? "Série / pyramide"
-                      : "Chrono performance"
-                  )
+          const host = document.createElement("div");
+          exportQrHost.appendChild(host);
+          const label = isSimple()
+            ? "Chrono simple"
+            : isChronoSeries()
+              ? "Série / pyramide"
+              : isChrono()
+                ? "Chrono performance"
                 : payload.tool === "vma"
                   ? "Test VMA"
                   : "Minuteur / Tours";
-
           renderInlineQr(
-            exportQrHost,
+            host,
             payload,
-            (
-              runner
-                ? runner.last.toUpperCase() +
-                  " " +
-                  runner.first
-                : label
-            ) +
-            " · " +
-            label
+            `${item.last.toUpperCase()} ${item.first} · ${label}`
           );
-
-        }
-
+        });
       }
 
     }
@@ -5915,6 +5821,36 @@ return null;
   }
 
 
+  function downloadResultsForCarnet() {
+    const r = selectedExportRunner();
+    const result = resultTextFor(r);
+    if (!result || !r) {
+      return toast("Aucun résultat à enregistrer pour ce coureur.");
+    }
+
+    // Le bouton « Importer » du Carnet accepte les champs html et text.
+    const html = result.split(/\r?\n/)
+      .map(line => `<div>${esc(line) || "<br>"}</div>`)
+      .join("");
+    const blob = new Blob(
+      [JSON.stringify({ html, text: result }, null, 2)],
+      { type: "application/json" }
+    );
+    const name = `${r.last || r.name || "eleve"}_${r.first || ""}`
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9_-]+/g, "_");
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `ChronoCarnet_${name}_${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  }
+
+
   function buildSheet() {
 
     const r =
@@ -6352,6 +6288,9 @@ return null;
 
   $("saveLaterBtn").onclick =
     buildSheet;
+
+  $("downloadResultsBtn").onclick =
+    downloadResultsForCarnet;
 
 
   $("closeSheetBtn").onclick =
