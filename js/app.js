@@ -5821,33 +5821,58 @@ return null;
   }
 
 
-  function downloadResultsForCarnet() {
+  function carnetResultsFile() {
     const r = selectedExportRunner();
     const result = resultTextFor(r);
     if (!result || !r) {
-      return toast("Aucun résultat à enregistrer pour ce coureur.");
+      toast("Aucun résultat à enregistrer pour ce coureur.");
+      return null;
     }
 
     // Le bouton « Importer » du Carnet accepte les champs html et text.
     const html = result.split(/\r?\n/)
       .map(line => `<div>${esc(line) || "<br>"}</div>`)
       .join("");
-    const blob = new Blob(
-      [JSON.stringify({ html, text: result }, null, 2)],
-      { type: "application/json" }
-    );
     const name = `${r.last || r.name || "eleve"}_${r.first || ""}`
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .replace(/[^a-zA-Z0-9_-]+/g, "_");
-    const url = URL.createObjectURL(blob);
+    return new File(
+      [JSON.stringify({ html, text: result }, null, 2)],
+      `ChronoCarnet_${name}_${new Date().toISOString().slice(0, 10)}.json`,
+      { type: "application/json" }
+    );
+  }
+
+  function downloadResultsForCarnet() {
+    const file = carnetResultsFile();
+    if (!file) return;
+    const url = URL.createObjectURL(file);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `ChronoCarnet_${name}_${new Date().toISOString().slice(0, 10)}.json`;
+    link.download = file.name;
     document.body.appendChild(link);
     link.click();
     link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 60000);
+  }
+
+  async function shareResultsForCarnet() {
+    const file = carnetResultsFile();
+    if (!file) return;
+
+    if (!navigator.share || !navigator.canShare?.({ files: [file] })) {
+      downloadResultsForCarnet();
+      return toast("Fichier enregistré : retrouve-le dans Téléchargements pour l’envoyer.");
+    }
+
+    try {
+      await navigator.share({ files: [file], title: "Résultats Chrono Carnet" });
+    } catch (error) {
+      if (error?.name !== "AbortError") {
+        toast("Partage impossible. Utilise « Enregistrer pour mon Carnet ».");
+      }
+    }
   }
 
 
@@ -6291,6 +6316,9 @@ return null;
 
   $("downloadResultsBtn").onclick =
     downloadResultsForCarnet;
+
+  $("shareResultsBtn").onclick =
+    shareResultsForCarnet;
 
 
   $("closeSheetBtn").onclick =

@@ -1712,7 +1712,7 @@
   <div class="sheetPanel">
 
 
-    <div class="sheetToolbar">
+    <div class="sheetToolbar" style="flex-wrap:wrap">
 
       <button
         id="closeSheetBtn"
@@ -1724,9 +1724,16 @@
 
       <button
         id="shareSheetBtn"
+        class="btn soft"
+      >
+        Partager le texte
+      </button>
+
+      <button
+        id="shareResultsBtn"
         class="btn primary"
       >
-        Partager la fiche
+        Envoyer le fichier (.json)
       </button>
 
       <button
@@ -1746,7 +1753,7 @@
 
 
     <p class="captureHint">
-      Garde ce fichier dans Fichiers sur l’iPad. Sur ta tablette, ouvre une séance du Carnet, touche « Importer » dans « Travail réalisé », puis sélectionne ce fichier. La fiche peut aussi être capturée en image.
+      Enregistre ou envoie le fichier de résultats. Dans le Carnet de l’élève, ouvre une séance puis touche « Importer » sous « Travail réalisé » pour choisir ce fichier .json. « Joindre » sert aux images. La fiche peut aussi être capturée en image.
     </p>
 
 
@@ -1768,7 +1775,7 @@
 
 <script src="/js/ccf-input-guard.js?v=1"></script>
 
-<script src="/js/app.js?v=55"></script>
+<script src="/js/app.js?v=56"></script>
 
 
 </body>
