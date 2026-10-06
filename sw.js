@@ -1,13 +1,13 @@
-const CACHE = "chrono-carnet-v57";
+const CACHE = "chrono-carnet-v58";
 
 const APP = [
   "/",
   "/index.html",
 
-  "/css/app.css?v=4.4.1",
+  "/css/app.css?v=4.4.2",
   "/css/clarity.css?v=2",
 
-  "/js/app.js?v=56",
+  "/js/app.js?v=58",
   "/js/v44.js?v=2",
   "/js/ccf-input-guard.js?v=1",
   "/js/ccf-step.js?v=1",
@@ -56,7 +56,7 @@ self.addEventListener("activate", event => {
 
           keys
             .filter(key =>
-              key !== CACHE
+              key.startsWith("chrono-carnet-") && key !== CACHE
             )
             .map(key =>
               caches.delete(key)
@@ -81,9 +81,8 @@ self.addEventListener("activate", event => {
 
 self.addEventListener("fetch", event => {
 
-  if (
-    event.request.method !== "GET"
-  ) {
+  if (event.request.method !== "GET" ||
+      new URL(event.request.url).origin !== self.location.origin) {
     return;
   }
 
@@ -94,18 +93,20 @@ self.addEventListener("fetch", event => {
 
       .then(response => {
 
+        if (!response.ok) throw new Error("Ressource indisponible");
+
         const copy =
           response.clone();
 
 
-        caches
+        event.waitUntil(caches
           .open(CACHE)
           .then(cache =>
             cache.put(
               event.request,
               copy
             )
-          );
+          ).catch(() => {}));
 
 
         return response;
@@ -130,9 +131,9 @@ self.addEventListener("fetch", event => {
           "navigate"
         ) {
 
-          return caches.match(
+          return (await caches.match(
             "/index.html"
-          );
+          )) || Response.error();
 
         }
 

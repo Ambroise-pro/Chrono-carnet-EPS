@@ -3276,6 +3276,11 @@ return null;
     const r =
       activeRunner();
 
+    const timerCard = document.querySelector(".timerCard");
+    const tone = !isSimple() && r ? (r.tone === "blue" ? "blue" : "green") : null;
+    timerCard.classList.toggle("runner-green", tone === "green");
+    timerCard.classList.toggle("runner-blue", tone === "blue");
+
 
     if (
       isTimed()
@@ -6823,21 +6828,63 @@ return null;
     );
 
 
-  /* Réseau */
+  /* Réseau et mises à jour : ne jamais recharger la prise de performance. */
+
+  let swRegistration = null;
+  let updatePending = false;
+  let updateReloading = false;
+  let updateChecking = false;
+  let hadController = !!navigator.serviceWorker?.controller;
+
+  function renderNetworkStatus() {
+    $("offlineBadge").textContent = updatePending
+      ? "Mise à jour prête · retour aux paramètres"
+      : navigator.onLine ? "En ligne · v58" : "Hors ligne · v58";
+  }
+
+  function applyUpdateWhenSafe() {
+    if (!updatePending || updateReloading || !navigator.onLine || running ||
+        state.view === "performance" || document.visibilityState !== "visible" ||
+        (state.recoveryStartedAt && Date.now() - state.recoveryStartedAt < 720000) ||
+        document.querySelector("dialog[open]") ||
+        document.activeElement?.matches("input, select, textarea") ||
+        ["runnerLast", "runnerFirst", "runnerClass", "project1Min", "project1Sec",
+         "project2Min", "project2Sec"].some(id => $(id)?.value.trim())) return;
+    try {
+      save();
+      updateReloading = true;
+      window.location.reload();
+    } catch {
+      // Une sauvegarde impossible doit empêcher le rechargement.
+      updateReloading = false;
+    }
+  }
+
+  async function checkForUpdate() {
+    if (!swRegistration || !navigator.onLine || updateChecking) return;
+    updateChecking = true;
+    try {
+      await swRegistration.update();
+    } catch {
+      // Réseau indisponible : la version hors ligne reste utilisable.
+    } finally {
+      updateChecking = false;
+    }
+  }
 
   window.addEventListener(
     "online",
-    () =>
-      $("offlineBadge").textContent =
-        "En ligne"
+    () => {
+      renderNetworkStatus();
+      checkForUpdate();
+      applyUpdateWhenSafe();
+    }
   );
 
 
   window.addEventListener(
     "offline",
-    () =>
-      $("offlineBadge").textContent =
-        "Hors ligne prêt"
+    renderNetworkStatus
   );
 
 
@@ -6847,11 +6894,36 @@ return null;
     "serviceWorker" in navigator
   ) {
 
-    navigator
-      .serviceWorker
-      .register(
-        "/sw.js"
-      );
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (hadController) {
+        updatePending = true;
+        renderNetworkStatus();
+        applyUpdateWhenSafe();
+      }
+      hadController = true;
+    });
+
+    navigator.serviceWorker.register("/sw.js", { updateViaCache: "none" })
+      .then(registration => {
+        swRegistration = registration;
+        checkForUpdate();
+      })
+      .catch(() => {
+        $("offlineBadge").textContent = "Hors ligne non disponible · v58";
+      });
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") {
+        checkForUpdate();
+        applyUpdateWhenSafe();
+      }
+    });
+    window.addEventListener("pageshow", () => {
+      checkForUpdate();
+      applyUpdateWhenSafe();
+    });
+    setInterval(checkForUpdate, 60000);
+    setInterval(applyUpdateWhenSafe, 2000);
 
   }
 
@@ -6878,6 +6950,8 @@ return null;
 
 
   render();
+
+  renderNetworkStatus();
 
   tick();
 
