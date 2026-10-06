@@ -28,7 +28,7 @@
 
   <link
     rel="stylesheet"
-    href="/css/app.css?v=4.4.2"
+    href="/css/app.css?v=4.4.3"
   >
 
   <link
@@ -379,7 +379,7 @@
 
               <select id="chronoSeriesWithSplits">
                 <option value="no">Non · seulement le temps final</option>
-                <option value="yes">Oui · utiliser l’intervalle ci-dessous</option>
+                <option value="yes">Oui · cliquer à chaque passage</option>
               </select>
 
             </label>
@@ -1275,6 +1275,14 @@
 
         </div>
 
+        <p id="startReminder" class="startReminder"></p>
+
+        <div id="resetConfirmMessage" class="resetConfirmMessage hidden" role="status" aria-live="polite">
+          <strong id="resetConfirmText"></strong>
+          <p id="resetConfirmHint"></p>
+          <button id="cancelResetBtn" type="button" class="btn soft">Annuler</button>
+        </div>
+
 
         <button
           id="undoTimerLapBtn"
@@ -1612,6 +1620,27 @@
       </section>
 
 
+      <section id="projectionPanel" class="card projectionPanel hidden">
+        <div class="sectionHead">
+          <div><h2>Préparer mon évaluation</h2><p>Une estimation de chrono à partir du travail réalisé.</p></div>
+          <span class="projectionTag">Optionnel</span>
+        </div>
+        <div class="configGrid">
+          <label class="field"><span>Mon évaluation</span>
+            <select id="projectionTarget">
+              <option value="off">Sans projection</option>
+              <option value="800">2 × 800 m</option>
+              <option value="500">3 × 500 m</option>
+              <option value="custom">Autre distance</option>
+            </select>
+          </label>
+          <label id="projectionDistanceField" class="field hidden"><span>Distance d’une course (m)</span>
+            <input id="projectionCustomDistance" type="number" inputmode="numeric" min="50" max="10000" step="50" value="1000">
+          </label>
+        </div>
+        <div id="projectionResults" class="projectionResults" aria-live="polite"></div>
+      </section>
+
       <section
         id="exportSection"
         class="card exportCard"
@@ -1775,7 +1804,7 @@
 
 <script src="/js/ccf-input-guard.js?v=1"></script>
 
-<script src="/js/app.js?v=58"></script>
+<script src="/js/app.js?v=59"></script>
 
 
 </body>

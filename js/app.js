@@ -48,6 +48,9 @@
     chronoSeriesText: "100 200 300 200 100",
     chronoSeriesDistances: [100,200,300,200,100],
     chronoSeriesWithSplits: false,
+    chronoSingleWithSplits: true,
+    projectionTarget: "off",
+    projectionCustomDistance: 1000,
 
     timerDurationChoice: "360",
     timerDurationMs: 360000,
@@ -115,6 +118,10 @@
 
   state.chronoSeriesWithSplits =
     !!state.chronoSeriesWithSplits;
+
+  state.chronoSingleWithSplits = state.chronoSingleWithSplits !== false;
+  if (!["off", "800", "500", "custom"].includes(state.projectionTarget)) state.projectionTarget = "off";
+  state.projectionCustomDistance = Math.min(10000, Math.max(50, Number(state.projectionCustomDistance) || 1000));
 
   if (!Array.isArray(state.timedRuns)) {
     state.timedRuns = [];
@@ -327,8 +334,8 @@
       raceDistance(race);
 
     if (
-      isChronoSeries() &&
-      !state.chronoSeriesWithSplits
+      isChrono() &&
+      !(isChronoSeries() ? state.chronoSeriesWithSplits : state.chronoSingleWithSplits)
     ) {
       return distance;
     }
@@ -888,8 +895,11 @@
           parsedSeries;
       }
 
-      state.chronoSeriesWithSplits =
-        $("chronoSeriesWithSplits")?.value === "yes";
+      if (state.chronoPlanMode === "series") {
+        state.chronoSeriesWithSplits = $("chronoSeriesWithSplits")?.value === "yes";
+      } else {
+        state.chronoSingleWithSplits = $("chronoSeriesWithSplits")?.value === "yes";
+      }
 
       state.totalDistance =
         $("totalDistance").value === "custom"
@@ -1167,7 +1177,7 @@
       state.chronoSeriesText;
 
     $("chronoSeriesWithSplits").value =
-      state.chronoSeriesWithSplits
+      (state.chronoPlanMode === "series" ? state.chronoSeriesWithSplits : state.chronoSingleWithSplits)
         ? "yes"
         : "no";
 
@@ -1181,7 +1191,7 @@
 
     setVisible(
       "chronoSeriesSplitToggleField",
-      chronoSeries
+      true
     );
 
     setVisible(
@@ -1196,8 +1206,7 @@
 
     setVisible(
       "splitDistanceField",
-      !chronoSeries ||
-      state.chronoSeriesWithSplits
+      chronoSeries ? state.chronoSeriesWithSplits : state.chronoSingleWithSplits
     );
 
     $("totalDistance").value =
@@ -1244,8 +1253,7 @@
     setVisible(
       "customSplitWrap",
       (
-        !chronoSeries ||
-        state.chronoSeriesWithSplits
+        chronoSeries ? state.chronoSeriesWithSplits : state.chronoSingleWithSplits
       ) &&
       $("splitDistance").value === "custom"
     );
@@ -1371,8 +1379,9 @@
 
       recap.push(
         "Chrono performance",
-        `${state.totalDistance} m`,
-        `${state.splitDistance} m / passage`
+        isChronoSeries() ? state.chronoSeriesDistances.map(distance => `${distance} m`).join(" → ") : `${state.totalDistance} m`,
+        (isChronoSeries() ? state.chronoSeriesWithSplits : state.chronoSingleWithSplits)
+          ? `${state.splitDistance} m / passage` : "Sans intermédiaire"
       );
 
     } else if (
@@ -2026,9 +2035,9 @@
       ) &&
       (
         state.totalDistance <= 0 ||
-        state.splitDistance <= 0 ||
+        raceSplitDistance() <= 0 ||
         state.totalDistance %
-        state.splitDistance
+        raceSplitDistance()
       )
     ) {
 
@@ -3052,7 +3061,42 @@ return null;
      RESET / SELECTION
   ========================================================= */
 
+  let resetArmedUntil = 0;
+  let resetArmedScope = null;
+  let resetConfirmTimer = null;
+
+  function cancelResetConfirmation() {
+    resetArmedUntil = 0;
+    resetArmedScope = null;
+    clearTimeout(resetConfirmTimer);
+    setVisible("resetConfirmMessage", false);
+    $("resetBtn").textContent = "RESET";
+    $("resetBtn").classList.remove("reset-armed");
+  }
+
   function resetCurrent() {
+    const scope = `${state.mode}:${state.trainingTool}:${state.activeRunnerId}:${state.activeRace}`;
+    if (Date.now() < resetArmedUntil && scope === resetArmedScope) {
+      cancelResetConfirmation();
+      performResetCurrent();
+      return;
+    }
+    cancelResetConfirmation();
+    resetArmedScope = scope;
+    resetArmedUntil = Date.now() + 8000;
+    const r = activeRunner();
+    $("resetConfirmText").textContent = isSimple()
+      ? "Voulez-vous réellement remettre le chrono à zéro ?"
+      : `Voulez-vous réellement remettre à zéro la course actuelle de ${r?.name || "ce coureur"} ?`;
+    $("resetConfirmHint").textContent = "Appuyez une deuxième fois sur RESET dans les 8 secondes pour confirmer. " +
+      (running ? "Le chrono continue." : "Aucun temps n’est effacé avant confirmation.");
+    setVisible("resetConfirmMessage", true);
+    $("resetBtn").textContent = "CONFIRMER RESET";
+    $("resetBtn").classList.add("reset-armed");
+    resetConfirmTimer = setTimeout(cancelResetConfirmation, 8000);
+  }
+
+  function performResetCurrent() {
 
     if (
       isSimple()
@@ -3080,26 +3124,6 @@ return null;
       isTimed()
     ) {
 
-      const existing =
-        timedRunFor(r.id);
-
-
-      if (
-        (
-          existing ||
-          timedLapCount ||
-          timedFinished
-        ) &&
-        !confirm(
-          `Effacer le résultat de ${r.name} pour ce test ?`
-        )
-      ) {
-
-        return;
-
-      }
-
-
       state.timedRuns =
         state.timedRuns.filter(
           x =>
@@ -3116,18 +3140,6 @@ return null;
       save();
 
       renderPerf();
-
-      return;
-
-    }
-
-
-    if (
-      rr(r.id).length &&
-      !confirm(
-        `Effacer les temps de ${r.name} pour cette course ?`
-      )
-    ) {
 
       return;
 
@@ -3271,6 +3283,69 @@ return null;
      AFFICHAGE CHRONO
   ========================================================= */
 
+  function startReminderText() {
+    if (isSimple()) return "Chrono libre : appuyez sur DÉPART, puis sur STOP à la fin.";
+    if (isTimed()) return `Course au temps : appuyez sur +1 TOUR à chaque tour de ${currentTrackDistance()} m. À la fin, ajoutez la distance supplémentaire.`;
+    const distance = raceDistance();
+    const split = raceSplitDistance();
+    return split < distance
+      ? `Avec temps intermédiaires : appuyez sur TOUR à chaque passage de ${split} m, y compris à l’arrivée (${distance} m).`
+      : `Sans temps intermédiaire : appuyez une seule fois sur TOUR à l’arrivée (${distance} m).`;
+  }
+
+  function projectionSource(runnerId) {
+    if (isTimed()) {
+      const result = timedRunFor(runnerId);
+      return result && result.totalDistance > 0 && result.durationMs > 0
+        ? { distance: result.totalDistance, time: result.durationMs, courses: 1 }
+        : null;
+    }
+    if (!isChrono()) return null;
+    let distance = 0, time = 0, courses = 0;
+    for (let race = 1; race <= raceCount(); race++) {
+      if (!done(runnerId, race)) continue;
+      const last = rr(runnerId, race).at(-1);
+      if (!last || last.distance <= 0 || last.cumulativeMs <= 0) continue;
+      distance += last.distance;
+      time += last.cumulativeMs;
+      courses++;
+    }
+    return courses ? { distance, time, courses } : null;
+  }
+
+  function projectedTime(source, distance) {
+    return source && source.distance > 0 && source.time > 0 && distance > 0
+      ? source.time * distance / source.distance : null;
+  }
+
+  function renderProjection() {
+    const available = state.mode === "training" && !isSimple();
+    setVisible("projectionPanel", available);
+    if (!available) return;
+    $("projectionTarget").value = state.projectionTarget;
+    $("projectionCustomDistance").value = state.projectionCustomDistance;
+    setVisible("projectionDistanceField", state.projectionTarget === "custom");
+    if (state.projectionTarget === "off") {
+      $("projectionResults").innerHTML = "";
+      return;
+    }
+    const distance = state.projectionTarget === "custom"
+      ? state.projectionCustomDistance : Number(state.projectionTarget);
+    $("projectionResults").innerHTML = state.runners.map(r => {
+      const source = projectionSource(r.id);
+      const time = projectedTime(source, distance);
+      const label = state.projectionTarget === "800" ? "2 × 800 m"
+        : state.projectionTarget === "500" ? "3 × 500 m" : `${distance} m`;
+      return `<article class="projectionCard ${r.tone === "blue" ? "blue" : "green"}">
+        <h3>${esc(r.name)}</h3><span>${label}</span>
+        ${time === null ? '<p>Terminez et validez une course pour obtenir une estimation.</p>'
+          : `<strong class="projectionTime">≈ ${fmtClock(Math.round(time / 1000) * 1000)}</strong>
+             <b>pour une course de ${distance} m</b>
+             <p>Base : ${source.distance} m en ${fmtClock(source.time)}, sur ${source.courses} course${source.courses > 1 ? "s" : ""} terminée${source.courses > 1 ? "s" : ""}, hors récupération.</p>`}
+        </article>`;
+    }).join("") + '<p class="projectionDisclaimer">Estimation à l’allure moyenne du travail réalisé. Ce repère ne garantit pas le temps sur une autre distance ni la capacité à répéter ce chrono sur toutes les courses. Ce n’est pas une note.</p>';
+  }
+
   function renderTimer() {
 
     const r =
@@ -3280,6 +3355,9 @@ return null;
     const tone = !isSimple() && r ? (r.tone === "blue" ? "blue" : "green") : null;
     timerCard.classList.toggle("runner-green", tone === "green");
     timerCard.classList.toggle("runner-blue", tone === "blue");
+
+    setVisible("startReminder", !running);
+    $("startReminder").textContent = startReminderText();
 
 
     if (
@@ -5029,9 +5107,9 @@ return null;
 
       $("perfRecap").innerHTML =
 
-        `<span>${state.totalDistance} m</span>` +
+        `<span>${raceDistance()} m</span>` +
 
-        `<span>Inter. ${state.splitDistance} m</span>` +
+        (raceSplitDistance() < raceDistance() ? `<span>Inter. ${raceSplitDistance()} m</span>` : '<span>Sans intermédiaire</span>') +
 
         `${
           examMode
@@ -5187,6 +5265,8 @@ return null;
 
 
     renderTimer();
+
+    renderProjection();
 
 
     if (
@@ -6223,6 +6303,24 @@ return null;
   $("resetBtn").onclick =
     resetCurrent;
 
+  $("cancelResetBtn").onclick = cancelResetConfirmation;
+  document.addEventListener("pointerdown", event => {
+    if (!event.target.closest("#resetBtn")) cancelResetConfirmation();
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState !== "visible") cancelResetConfirmation();
+  });
+  $("projectionTarget").onchange = () => {
+    state.projectionTarget = $("projectionTarget").value;
+    save();
+    renderProjection();
+  };
+  $("projectionCustomDistance").onchange = () => {
+    state.projectionCustomDistance = Math.min(10000, Math.max(50, Number($("projectionCustomDistance").value) || 1000));
+    save();
+    renderProjection();
+  };
+
 
   $("newSessionBtn").onclick =
     () => {
@@ -6839,7 +6937,7 @@ return null;
   function renderNetworkStatus() {
     $("offlineBadge").textContent = updatePending
       ? "Mise à jour prête · retour aux paramètres"
-      : navigator.onLine ? "En ligne · v58" : "Hors ligne · v58";
+      : navigator.onLine ? "En ligne · v59" : "Hors ligne · v59";
   }
 
   function applyUpdateWhenSafe() {
@@ -6909,7 +7007,7 @@ return null;
         checkForUpdate();
       })
       .catch(() => {
-        $("offlineBadge").textContent = "Hors ligne non disponible · v58";
+        $("offlineBadge").textContent = "Hors ligne non disponible · v59";
       });
 
     document.addEventListener("visibilitychange", () => {
