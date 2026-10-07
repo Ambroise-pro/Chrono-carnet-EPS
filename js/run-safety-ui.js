@@ -87,60 +87,7 @@
   }
 
   function installBriefing() {
-    const start = $("startBtn");
-    if (!start || start.dataset.briefingBound === "1") return;
-
-    start.dataset.briefingBound = "1";
-
-    start.addEventListener("click", event => {
-      if (start.dataset.briefingBypass === "1") {
-        start.dataset.briefingBypass = "";
-        return;
-      }
-
-      const state = readState();
-      if (state.view !== "performance") return;
-
-      event.preventDefault();
-      event.stopPropagation();
-      event.stopImmediatePropagation();
-
-      const info = modeInfo(state);
-      const runner = (state.runners || []).find(r => r.id === state.activeRunnerId);
-
-      let dialog = $("startBriefingDialog");
-      if (!dialog) {
-        dialog = document.createElement("dialog");
-        dialog.id = "startBriefingDialog";
-        dialog.className = "choiceDialog";
-        document.body.appendChild(dialog);
-      }
-
-      dialog.innerHTML =
-        '<div class="dialogPanel startBriefingPanel">' +
-          '<p class="eyebrow">AVANT LE DÉPART</p>' +
-          '<h3>' + info.title + '</h3>' +
-          (runner ? '<p><strong>' + nameOf(runner) + '</strong>' +
-            (runner.classroom ? ' · ' + runner.classroom : '') + '</p>' : '') +
-          '<div class="startBriefingBand">' +
-            '<strong>' + info.detail + '</strong>' +
-            '<span>' + info.action + '</span>' +
-          '</div>' +
-          '<div class="startBriefingActions">' +
-            '<button type="button" id="briefingCancel" class="btn soft">Annuler</button>' +
-            '<button type="button" id="briefingGo" class="btn primary">J’ai compris · DÉPART</button>' +
-          '</div>' +
-        '</div>';
-
-      $("briefingCancel").onclick = () => dialog.close();
-      $("briefingGo").onclick = () => {
-        dialog.close();
-        start.dataset.briefingBypass = "1";
-        start.click();
-      };
-
-      dialog.showModal();
-    }, true);
+    // v66: pas de pop-up avant le départ.
   }
 
   function installStopButton() {
@@ -151,7 +98,7 @@
     button.id = "stopRunnerBtn";
     button.type = "button";
     button.className = "btn stopRunnerBtn";
-    button.textContent = "⚠ Arrêt élève";
+    button.textContent = "✚ Infirmerie";
 
     timerCard.insertBefore(button, timerCard.firstChild);
 
@@ -174,7 +121,7 @@
 
       dialog.innerHTML =
         '<div class="dialogPanel">' +
-          '<h3>⚠ Arrêt élève</h3>' +
+          '<h3>✚ Infirmerie · arrêt élève</h3>' +
           '<p>Choisis l’élève qui doit arrêter. Le motif enregistré sera <strong>Blessé / autre</strong>.</p>' +
           runners.map(r =>
             '<button type="button" class="choiceBtn" data-stop-id="' + r.id + '">' +
@@ -271,21 +218,14 @@
     style.textContent = `
       .stopRunnerBtn{
         position:absolute;top:14px;right:14px;z-index:4;
-        background:#fff7ed;color:#9a3412;border:1px solid #fdba74;
-        padding:8px 11px;font-size:12px
+        background:#fff;color:#b91c1c;border:2px solid #ef4444;
+        padding:8px 11px;font-size:12px;font-weight:900;
+        box-shadow:0 6px 18px rgba(185,28,28,.18)
       }
       .timerCard{position:relative}
-      .startBriefingPanel h3{font-size:28px;margin:4px 0 8px}
-      .startBriefingBand{
-        display:grid;gap:8px;margin:18px 0;padding:18px;
-        border-radius:16px;background:#eff6ff;border:2px solid #93c5fd;
-        color:#1e3a8a;font-size:17px;line-height:1.45
-      }
-      .startBriefingBand strong{font-size:20px}
-      .startBriefingActions{display:flex;justify-content:flex-end;gap:10px}
+      .stopRunnerBtn::first-letter{font-size:16px}
       @media(max-width:620px){
         .stopRunnerBtn{top:10px;right:10px;padding:7px 9px}
-        .startBriefingActions{display:grid;grid-template-columns:1fr}
       }
     `;
     document.head.appendChild(style);
