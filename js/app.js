@@ -127,6 +127,16 @@
     state.timedRuns = [];
   }
 
+  state.runners = Array.isArray(state.runners)
+    ? state.runners.map(runner => ({
+        ...runner,
+        stopped: !!runner.stopped,
+        stoppedReason: runner.stoppedReason || "",
+        stoppedAt: runner.stoppedAt || null,
+        stoppedRace: runner.stoppedRace || null
+      }))
+    : [];
+
   if (!state.timerDurationChoice) {
     state.timerDurationChoice =
       [180000,360000,540000,720000,900000,1200000]
@@ -692,10 +702,19 @@
     ) || null;
 
 
+  const runnerStopped = id =>
+    !!state.runners.find(
+      runner =>
+        runner.id === id &&
+        runner.stopped
+    );
+
+
   const done = (
     id,
     race = state.activeRace
   ) =>
+    runnerStopped(id) ||
     rr(id,race).length >=
     requiredSplits(race);
 
@@ -1805,7 +1824,19 @@
           : "green",
 
       lockedIdentity:
-        isExamMode()
+        isExamMode(),
+
+      stopped:
+        false,
+
+      stoppedReason:
+        "",
+
+      stoppedAt:
+        null,
+
+      stoppedRace:
+        null
 
     };
 
