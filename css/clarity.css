@@ -2109,3 +2109,20 @@ input:checked + span {
 #exam500Config strong{color:#775923}
 @media(min-width:1051px){#setupPanel > .modeGrid.twoModes{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}#setupPanel > .modeGrid.twoModes > .modeCard > span{height:100%;min-height:150px;padding:20px 42px 20px 18px}}
 @media(max-width:760px){#trainingToolSelector,#runnerSetupBlock{padding:14px;border-radius:18px}}
+
+
+/* Preparation in focused steps */
+.setupHeading { margin-bottom: 24px; }
+.setupHeading h2 { font-size: clamp(1.65rem, 4vw, 2.3rem); margin: 6px 0 10px; }
+#setupHint { color: #526174; line-height: 1.5; margin: 0; }
+#setupTitle:focus { outline: none; }
+#setupPanel[data-step="cover"] { padding: clamp(22px, 4vw, 44px); }
+#setupPanel[data-step="cover"] .modeCard { min-height: 145px; justify-content: center; }
+.setupNavigation { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 24px; }
+.setupNavigation:has(button:not(.hidden)) + #launchPerformanceBtn:not(.hidden) { margin-top: 14px; }
+#trainingToolSelector .trainingToolTitle { display: none; }
+#setupPanel .hidden { display: none !important; }
+@media (max-width: 600px) {
+  #setupPanel[data-step="cover"] .modeCard { min-height: 108px; }
+  .setupNavigation .btn { min-height: 48px; }
+}

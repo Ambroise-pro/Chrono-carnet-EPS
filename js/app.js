@@ -1054,6 +1054,52 @@
      PAGE PARAMETRAGE
   ========================================================= */
 
+  let setupStep = "cover";
+
+  function renderSetupWizard() {
+    const cover = setupStep === "cover";
+    const tools = setupStep === "tools";
+    const settings = setupStep === "settings";
+    const runners = setupStep === "runners";
+    const exam = isExamMode();
+    const titles = { cover: "Chrono Carnet EPS", tools: "Quel outil veux-tu utiliser ?",
+      settings: "Préparer la séance", runners: "Qui va courir ?" };
+    const hints = { cover: "Choisis ton mode pour préparer ta séance.",
+      tools: "Choisis un outil pour afficher ses réglages.",
+      settings: "Règle uniquement ce dont tu as besoin pour cette séance.",
+      runners: exam ? "Ajoute un ou deux élèves. Leurs estimations seront demandées avant chaque course concernée."
+        : "Ajoute un ou deux coureurs pour leur associer les résultats." };
+    $("setupTitle").textContent = titles[setupStep];
+    $("setupHint").textContent = hints[setupStep];
+    $("setupProgress").textContent = cover ? "Bienvenue" : exam ? "Examen · Identité"
+      : "Entraînement · " + ({ tools: "1 / 3", settings: "2 / 3", runners: "3 / 3" }[setupStep]);
+    $("setupPanel").dataset.step = setupStep;
+    setVisible("setupModes", cover);
+    setVisible("trainingConfig", !exam && (tools || settings));
+    setVisible("trainingToolSelector", tools);
+    document.querySelectorAll(".trainingSubConfig").forEach(el => {
+      el.classList.toggle("hidden", !settings || el.id !== ({ simple: "trainingSimpleConfig",
+        chrono: "trainingChronoConfig", timer: "trainingTimerConfig", vma: "trainingVmaConfig" }[state.trainingTool]));
+    });
+    setVisible("ccfConfig", runners && state.mode === "ccf");
+    setVisible("exam500Config", runners && state.mode === "exam500");
+    setVisible("runnerSetupBlock", runners);
+    setVisible("configRecap", settings || runners);
+    setVisible("configMessage", settings);
+    setVisible("setupBackBtn", !cover);
+    setVisible("setupNextBtn", settings && !isSimple());
+    setVisible("launchPerformanceBtn", runners || (settings && isSimple()));
+    if (exam) $("launchPerformanceBtn").textContent = "Continuer : annoncer les temps →";
+  }
+
+  function goSetupStep(step) {
+    if (setupStep === "settings") { readConfig(); save(); }
+    setupStep = step;
+    renderSetup();
+    $("setupTitle").focus({ preventScroll: true });
+    $("setupPanel").scrollIntoView?.({ block: "start", behavior: "smooth" });
+  }
+
   function renderSetup() {
 
     document
@@ -1451,6 +1497,7 @@
 
 
     renderRunnerSetup();
+    renderSetupWizard();
 
   }
 
@@ -1997,7 +2044,7 @@
 
 
     if (
-      !state.runners.length
+      !state.runners.length && !isSimple()
     ) {
 
       return toast(
@@ -6245,8 +6292,13 @@ return null;
     addRunner;
 
 
-  $("launchPerformanceBtn").onclick =
-    launch;
+  $("setupBackBtn").onclick = () => goSetupStep(
+    setupStep === "runners" ? (isExamMode() ? "cover" : "settings")
+      : setupStep === "settings" ? "tools" : "cover"
+  );
+  $("setupNextBtn").onclick = () => goSetupStep("runners");
+
+  $("launchPerformanceBtn").onclick = launch;
 
 
   $("backSetupBtn").onclick =
@@ -6261,6 +6313,7 @@ return null;
       }
 
 
+      setupStep = isSimple() ? "settings" : "runners";
       state.view =
         "setup";
 
@@ -6338,6 +6391,7 @@ return null;
 
       state =
         base();
+      setupStep = "cover";
 
 
       resetClock();
@@ -6494,7 +6548,7 @@ return null;
     .forEach(
       x => {
 
-        x.onchange =
+        x.onclick =
           () => {
 
             if (!x.checked) {
@@ -6525,6 +6579,7 @@ return null;
             }
 
 
+            setupStep = isExamMode() ? "runners" : "tools";
             save();
 
             renderSetup();
@@ -6544,7 +6599,7 @@ return null;
     .forEach(
       x => {
 
-        x.onchange =
+        x.onclick =
           () => {
 
             if (!x.checked) {
@@ -6560,6 +6615,7 @@ return null;
 
             resetTimedRuntime();
 
+            setupStep = "settings";
             save();
 
             renderSetup();
@@ -6937,7 +6993,7 @@ return null;
   function renderNetworkStatus() {
     $("offlineBadge").textContent = updatePending
       ? "Mise à jour prête · retour aux paramètres"
-      : navigator.onLine ? "En ligne · v59" : "Hors ligne · v59";
+      : navigator.onLine ? "En ligne · v61" : "Hors ligne · v61";
   }
 
   function applyUpdateWhenSafe() {
@@ -7007,7 +7063,7 @@ return null;
         checkForUpdate();
       })
       .catch(() => {
-        $("offlineBadge").textContent = "Hors ligne non disponible · v59";
+        $("offlineBadge").textContent = "Hors ligne non disponible · v61";
       });
 
     document.addEventListener("visibilitychange", () => {
@@ -7056,3 +7112,4 @@ return null;
   updateRecovery();
 
 })();
+

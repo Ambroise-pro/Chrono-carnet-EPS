@@ -33,7 +33,7 @@
 
   <link
     rel="stylesheet"
-    href="/css/clarity.css?v=3"
+    href="/css/clarity.css?v=4"
   >
 
   <title>
@@ -97,12 +97,12 @@
       class="card"
     >
 
-      <h2>
-        1. Choisir le mode
-      </h2>
+      <div class="setupHeading"><p id="setupProgress" class="eyebrow">Bienvenue</p>
+      <h2 id="setupTitle" tabindex="-1">Chrono Carnet EPS</h2>
+      <p id="setupHint">Choisis ton mode pour préparer ta séance.</p></div>
 
 
-      <div class="modeGrid twoModes">
+      <div id="setupModes" class="modeGrid twoModes">
 
 
         <label class="modeCard">
@@ -1098,6 +1098,10 @@
       </div>
 
 
+      <div class="setupNavigation">
+        <button id="setupBackBtn" type="button" class="btn soft">← Retour</button>
+        <button id="setupNextBtn" type="button" class="btn primary big">Continuer →</button>
+      </div>
       <button
         id="launchPerformanceBtn"
         class="btn primary full big"
@@ -1804,9 +1808,10 @@
 
 <script src="/js/ccf-input-guard.js?v=1"></script>
 
-<script src="/js/app.js?v=59"></script>
+<script src="/js/app.js?v=61"></script>
 
 
 </body>
 
 </html>
+

@@ -1,13 +1,13 @@
-const CACHE = "chrono-carnet-v60";
+const CACHE = "chrono-carnet-v61";
 
 const APP = [
   "/",
   "/index.html",
 
   "/css/app.css?v=4.4.3",
-  "/css/clarity.css?v=3",
+  "/css/clarity.css?v=4",
 
-  "/js/app.js?v=59",
+  "/js/app.js?v=61",
   "/js/v44.js?v=2",
   "/js/ccf-input-guard.js?v=1",
   "/js/ccf-step.js?v=1",
@@ -145,3 +145,4 @@ self.addEventListener("fetch", event => {
   );
 
 });
+
