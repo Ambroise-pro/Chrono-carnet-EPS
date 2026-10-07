@@ -4416,9 +4416,25 @@ return null;
 
             if (
               rows.length <
-              requiredSplits(race)
+              requiredSplits(race) &&
+              !r.stopped
             ) {
               return null;
+            }
+
+            if (
+              !rows.length
+            ) {
+              return r.stopped
+                ? {
+                    d:
+                      raceDistance(race),
+                    s:
+                      raceSplitDistance(race),
+                    c: [],
+                    stopped: true
+                  }
+                : null;
             }
 
             return {
@@ -4434,7 +4450,11 @@ return null;
                         item.cumulativeMs
                       )
                     )
-                )
+                ),
+              stopped:
+                !!r.stopped &&
+                rows.length <
+                  requiredSplits(race)
             };
           }
         );
@@ -4479,7 +4499,18 @@ return null;
             ? "series"
             : "single",
         r:
-          races
+          races,
+        status:
+          r.stopped
+            ? "medical_stop"
+            : "complete",
+        statusLabel:
+          r.stopped
+            ? "Inapte / arrêt médical"
+            : null,
+        stoppedAt:
+          r.stoppedAt ||
+          null
       };
     }
 
@@ -4492,7 +4523,40 @@ return null;
         );
 
       if (!tr) {
-        return null;
+        if (!r.stopped) {
+          return null;
+        }
+
+        return {
+          type:
+            "DF_TRAINING_RESULT",
+          v: 2,
+          tool:
+            state.trainingTool,
+          resultId:
+            r.externalId +
+            "-medical-stop-" +
+            Date.now(),
+          studentId:
+            r.externalId,
+          last:
+            safeQrText(r.last),
+          first:
+            safeQrText(r.first),
+          classroom:
+            safeQrText(r.classroom),
+          sex:
+            safeQrText(r.sex),
+          status:
+            "medical_stop",
+          statusLabel:
+            "Inapte / arrêt médical",
+          stoppedAt:
+            r.stoppedAt ||
+            new Date().toISOString(),
+          createdAt:
+            new Date().toISOString()
+        };
       }
 
       return {
@@ -4556,7 +4620,18 @@ return null;
         createdAt:
           tr.createdAt ||
           new Date()
-            .toISOString()
+            .toISOString(),
+        status:
+          r.stopped
+            ? "medical_stop"
+            : "complete",
+        statusLabel:
+          r.stopped
+            ? "Inapte / arrêt médical"
+            : null,
+        stoppedAt:
+          r.stoppedAt ||
+          null
       };
     }
 
@@ -4576,7 +4651,8 @@ return null;
       if (
         races.some(
           a => a.length < 2
-        )
+        ) &&
+        !r.stopped
       ) {
         return null;
       }
@@ -4607,15 +4683,33 @@ return null;
                     ? fmt(r.project2Ms)
                     : null,
               split250Ms:
-                Math.round(
-                  a[0].cumulativeMs
-                ),
+                a[0]
+                  ? Math.round(
+                      a[0].cumulativeMs
+                    )
+                  : null,
               total500Ms:
-                Math.round(
-                  a[1].cumulativeMs
-                )
+                a[1]
+                  ? Math.round(
+                      a[1].cumulativeMs
+                    )
+                  : null,
+              stopped:
+                !!r.stopped &&
+                a.length < 2
             })
           ),
+        status:
+          r.stopped
+            ? "medical_stop"
+            : "complete",
+        statusLabel:
+          r.stopped
+            ? "Inapte / arrêt médical"
+            : null,
+        stoppedAt:
+          r.stoppedAt ||
+          null,
         createdAt:
           new Date().toISOString()
       };
@@ -4632,7 +4726,8 @@ return null;
 
 
     if (
-      a.length < 4
+      a.length < 4 &&
+      !r.stopped
     ) {
 
       return null;
@@ -4684,9 +4779,25 @@ return null;
         ),
 
       totalMs:
-        Math.round(
-          a.at(-1).cumulativeMs
-        ),
+        a.length
+          ? Math.round(
+              a.at(-1).cumulativeMs
+            )
+          : null,
+
+      status:
+        r.stopped
+          ? "medical_stop"
+          : "complete",
+
+      statusLabel:
+        r.stopped
+          ? "Inapte / arrêt médical"
+          : null,
+
+      stoppedAt:
+        r.stoppedAt ||
+        null,
 
       createdAt:
         new Date().toISOString()
@@ -5399,9 +5510,11 @@ return null;
 
       if (!running) {
         state.runners.forEach(item => {
-          const complete = isSimple()
-            ? elapsedMs > 0
-            : isTimed()
+          const complete = item.stopped
+            ? true
+            : isSimple()
+              ? elapsedMs > 0
+              : isTimed()
               ? !!timedRunFor(item.id)
               : isChrono() && Array.from(
                   { length: raceCount() },
@@ -7030,7 +7143,7 @@ return null;
   function renderNetworkStatus() {
     $("offlineBadge").textContent = updatePending
       ? "Mise à jour prête · retour aux paramètres"
-      : navigator.onLine ? "En ligne · v65" : "Hors ligne · v65";
+      : navigator.onLine ? "En ligne · v67" : "Hors ligne · v67";
   }
 
   function applyUpdateWhenSafe() {
@@ -7100,7 +7213,7 @@ return null;
         checkForUpdate();
       })
       .catch(() => {
-        $("offlineBadge").textContent = "Hors ligne non disponible · v65";
+        $("offlineBadge").textContent = "Hors ligne non disponible · v67";
       });
 
     document.addEventListener("visibilitychange", () => {
