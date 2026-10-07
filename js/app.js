@@ -5503,17 +5503,6 @@ return null;
       );
 
     setVisible(
-      "startRecoveryBtn",
-      ccf
-    );
-
-    setVisible(
-      "recoveryDisplay",
-      ccf
-    );
-
-
-    setVisible(
       "runnerPerformanceBlock",
       !isSimple()
     );
@@ -6495,6 +6484,10 @@ return null;
 
   function updateRecovery() {
 
+    if (!$("recoveryDisplay")) {
+      return;
+    }
+
     if (
       !state.recoveryStartedAt
     ) {
@@ -6764,7 +6757,7 @@ return null;
     };
 
 
-  $("startRecoveryBtn").onclick =
+  if ($("startRecoveryBtn")) $("startRecoveryBtn").onclick =
     () => {
 
       if (
@@ -7249,7 +7242,7 @@ return null;
   function renderNetworkStatus() {
     $("offlineBadge").textContent = updatePending
       ? "Mise à jour prête · retour aux paramètres"
-      : navigator.onLine ? "En ligne · v69" : "Hors ligne · v69";
+      : navigator.onLine ? "En ligne · v70" : "Hors ligne · v70";
   }
 
   function applyUpdateWhenSafe() {
@@ -7319,7 +7312,7 @@ return null;
         checkForUpdate();
       })
       .catch(() => {
-        $("offlineBadge").textContent = "Hors ligne non disponible · v69";
+        $("offlineBadge").textContent = "Hors ligne non disponible · v70";
       });
 
     document.addEventListener("visibilitychange", () => {
