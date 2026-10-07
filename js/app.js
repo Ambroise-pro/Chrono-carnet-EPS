@@ -4590,7 +4590,7 @@ return null;
             : "complete",
         statusLabel:
           r.stopped
-            ? "Inapte / arrêt médical"
+            ? "INAPTE_MEDICAL"
             : null,
         stoppedAt:
           r.stoppedAt ||
@@ -4634,7 +4634,7 @@ return null;
           status:
             "medical_stop",
           statusLabel:
-            "Inapte / arrêt médical",
+            "INAPTE_MEDICAL",
           stoppedAt:
             r.stoppedAt ||
             new Date().toISOString(),
@@ -4711,7 +4711,7 @@ return null;
             : "complete",
         statusLabel:
           r.stopped
-            ? "Inapte / arrêt médical"
+            ? "INAPTE_MEDICAL"
             : null,
         stoppedAt:
           r.stoppedAt ||
@@ -4789,7 +4789,7 @@ return null;
             : "complete",
         statusLabel:
           r.stopped
-            ? "Inapte / arrêt médical"
+            ? "INAPTE_MEDICAL"
             : null,
         stoppedAt:
           r.stoppedAt ||
@@ -4876,7 +4876,7 @@ return null;
 
       statusLabel:
         r.stopped
-          ? "Inapte / arrêt médical"
+          ? "INAPTE_MEDICAL"
           : null,
 
       stoppedAt:
@@ -4970,7 +4970,9 @@ return null;
     $("teacherQrTitle").textContent =
       isExam500()
         ? `${r.last.toUpperCase()} ${r.first} · 3 × 500 m`
-        : `${r.last.toUpperCase()} ${r.first} · 800 n°${race}`;
+        : r.stopped
+          ? `${r.last.toUpperCase()} ${r.first} · ARRÊT MÉDICAL · 800 n°${race}`
+          : `${r.last.toUpperCase()} ${r.first} · 800 n°${race}`;
 
 
     const box =
@@ -5184,14 +5186,29 @@ return null;
         .map(
           r => {
 
+            const racesForQr =
+              r.stopped
+                ? [
+                    Number(
+                      r.stoppedRace ||
+                      (
+                        rr(r.id,2).length
+                          ? 2
+                          : 1
+                      )
+                    )
+                  ]
+                : [1,2].filter(
+                    race =>
+                      rr(r.id,race).length >=
+                      requiredSplits(race)
+                  );
+
             const buttons =
-              [1,2]
+              racesForQr
                 .filter(
                   race =>
-                    done(
-                      r.id,
-                      race
-                    )
+                    [1,2].includes(race)
                 )
                 .map(
                   race =>
@@ -5200,7 +5217,12 @@ return null;
                     `class="btn primary" ` +
                     `data-qr-runner="${r.id}" ` +
                     `data-qr-race="${race}">` +
-                    `QR prof · ${esc(r.last.toUpperCase())} · 800 n°${race}` +
+                    `QR prof · ${esc(r.last.toUpperCase())} · ` +
+                    (
+                      r.stopped
+                        ? `ARRÊT MÉDICAL · 800 n°${race}`
+                        : `800 n°${race}`
+                    ) +
                     `</button>`
 
                 )
@@ -7227,7 +7249,7 @@ return null;
   function renderNetworkStatus() {
     $("offlineBadge").textContent = updatePending
       ? "Mise à jour prête · retour aux paramètres"
-      : navigator.onLine ? "En ligne · v68" : "Hors ligne · v68";
+      : navigator.onLine ? "En ligne · v69" : "Hors ligne · v69";
   }
 
   function applyUpdateWhenSafe() {
@@ -7297,7 +7319,7 @@ return null;
         checkForUpdate();
       })
       .catch(() => {
-        $("offlineBadge").textContent = "Hors ligne non disponible · v68";
+        $("offlineBadge").textContent = "Hors ligne non disponible · v69";
       });
 
     document.addEventListener("visibilitychange", () => {
