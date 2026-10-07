@@ -1060,6 +1060,7 @@
     const cover = setupStep === "cover";
     document.body.classList.toggle("setup-cover", cover && state.view === "setup");
     const tools = setupStep === "tools";
+    document.body.classList.toggle("setup-tools", tools && state.view === "setup");
     const settings = setupStep === "settings";
     const runners = setupStep === "runners";
     const exam = isExamMode();
@@ -5406,6 +5407,8 @@ return null;
 
   function render() {
 
+    document.body.classList.toggle("setup-tools", state.view === "setup" && setupStep === "tools");
+
     document.body.classList.toggle("setup-cover", state.view === "setup" && setupStep === "cover");
 
     $("setupPanel")
@@ -6996,7 +6999,7 @@ return null;
   function renderNetworkStatus() {
     $("offlineBadge").textContent = updatePending
       ? "Mise à jour prête · retour aux paramètres"
-      : navigator.onLine ? "En ligne · v62" : "Hors ligne · v62";
+      : navigator.onLine ? "En ligne · v63" : "Hors ligne · v63";
   }
 
   function applyUpdateWhenSafe() {
@@ -7066,7 +7069,7 @@ return null;
         checkForUpdate();
       })
       .catch(() => {
-        $("offlineBadge").textContent = "Hors ligne non disponible · v62";
+        $("offlineBadge").textContent = "Hors ligne non disponible · v63";
       });
 
     document.addEventListener("visibilitychange", () => {
