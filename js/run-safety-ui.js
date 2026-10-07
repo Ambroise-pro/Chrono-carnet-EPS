@@ -122,7 +122,7 @@
       dialog.innerHTML =
         '<div class="dialogPanel">' +
           '<h3>✚ Infirmerie · arrêt élève</h3>' +
-          '<p>Choisis l’élève qui doit arrêter. Le motif enregistré sera <strong>Blessé / autre</strong>.</p>' +
+          '<p>Choisis l’élève qui doit arrêter. Le motif enregistré sera <strong>Inapte / arrêt médical</strong>.</p>' +
           runners.map(r =>
             '<button type="button" class="choiceBtn" data-stop-id="' + r.id + '">' +
               '<strong>' + nameOf(r) + '</strong>' +
@@ -139,12 +139,12 @@
           if (!runner) return;
 
           if (!confirm(
-            "Marquer " + nameOf(runner) + " en « Blessé / autre » ?\n\n" +
+            "Marquer " + nameOf(runner) + " en « Inapte / arrêt médical » ?\n\n" +
             "Les courses déjà terminées seront conservées. Les courses restantes seront neutralisées."
           )) return;
 
           runner.stopped = true;
-          runner.stoppedReason = "Blessé / autre";
+          runner.stoppedReason = "Inapte / arrêt médical";
           runner.stoppedAt = new Date().toISOString();
           runner.stoppedRace = Number(fresh.activeRace || 1);
 
@@ -174,10 +174,14 @@
     if (!button) return;
 
     const state = readState();
+    const simpleTraining =
+      state.mode === "training" &&
+      state.trainingTool === "simple";
+
     button.classList.toggle(
       "hidden",
       state.view !== "performance" ||
-      state.trainingTool === "simple" ||
+      simpleTraining ||
       !(state.runners || []).some(r => !r.stopped)
     );
   }
