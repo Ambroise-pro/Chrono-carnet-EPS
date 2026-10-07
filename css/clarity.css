@@ -2126,3 +2126,34 @@ input:checked + span {
   #setupPanel[data-step="cover"] .modeCard { min-height: 108px; }
   .setupNavigation .btn { min-height: 48px; }
 }
+
+/* Cover: one title panel, then three equally sized mode choices. */
+.setup-cover .app { max-width: 1400px; padding: 20px clamp(16px, 3vw, 40px) 32px; }
+.setup-cover .topbar { justify-content: flex-end; margin-bottom: 18px; }
+.setup-cover .topbar > div:first-child { display: none; }
+.setup-cover .topActions { flex-wrap: wrap; justify-content: flex-end; width: 100%; }
+#setupPanel[data-step="cover"] { padding: 0; border: 0; background: transparent; box-shadow: none; }
+#setupPanel[data-step="cover"] .setupHeading {
+  display: flex; align-items: center; justify-content: center; text-align: center;
+  min-height: clamp(130px, 20vh, 200px); padding: 28px 20px; margin-bottom: 24px;
+  border: 1px solid #dbe3ee; border-radius: 26px; background: #fff;
+  box-shadow: 0 10px 28px #0f172a08;
+}
+#setupPanel[data-step="cover"] #setupTitle { margin: 0; font-size: clamp(2rem, 4.5vw, 3.5rem); line-height: 1.15; letter-spacing: -.035em; }
+#setupPanel[data-step="cover"] #setupProgress,
+#setupPanel[data-step="cover"] #setupHint,
+#setupPanel[data-step="cover"] .setupNavigation { display: none; }
+#setupPanel[data-step="cover"] #setupModes { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; margin: 0; align-items: stretch; }
+#setupPanel[data-step="cover"] #setupModes .modeCard { display: flex; min-height: 0; }
+#setupPanel[data-step="cover"] #setupModes .modeCard > span {
+  width: 100%; min-height: clamp(190px, 28vh, 280px); height: 100%;
+  padding: 36px 24px; text-align: center; align-items: center; border-radius: 24px;
+}
+#setupPanel[data-step="cover"] #setupModes .modeCard strong { font-size: clamp(1.15rem, 2vw, 1.6rem); line-height: 1.3; }
+#setupPanel[data-step="cover"] #setupModes .modeCard small { max-width: 30ch; font-size: 15px; line-height: 1.55; margin-top: 12px; }
+@media (max-width: 699px) {
+  .setup-cover .app { padding: 14px 14px 24px; }
+  #setupPanel[data-step="cover"] .setupHeading { min-height: 120px; padding: 24px 16px; margin-bottom: 18px; border-radius: 22px; }
+  #setupPanel[data-step="cover"] #setupModes { grid-template-columns: 1fr; gap: 14px; }
+  #setupPanel[data-step="cover"] #setupModes .modeCard > span { min-height: 130px; padding: 24px 40px; border-radius: 22px; }
+}
