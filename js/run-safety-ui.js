@@ -223,6 +223,22 @@
         box-shadow:0 6px 18px rgba(185,28,28,.18)
       }
       .timerCard{position:relative}
+      .startReminder{
+        background:#fff7ed!important;
+        color:#7c2d12!important;
+        border:3px solid #fb923c!important;
+        box-shadow:0 0 0 4px rgba(251,146,60,.18),0 10px 26px rgba(124,45,18,.18)!important;
+        font-weight:950!important;
+        font-size:17px!important;
+        line-height:1.35!important;
+      }
+      .startReminder:not(.hidden){
+        animation:chronoReminderPulse 1s ease-in-out infinite;
+      }
+      @keyframes chronoReminderPulse{
+        0%,100%{transform:scale(1);background:#fff7ed}
+        50%{transform:scale(1.025);background:#ffedd5}
+      }
       .stopRunnerBtn::first-letter{font-size:16px}
       @media(max-width:620px){
         .stopRunnerBtn{top:10px;right:10px;padding:7px 9px}
