@@ -148,34 +148,6 @@
           runner.stoppedAt = new Date().toISOString();
           runner.stoppedRace = Number(fresh.activeRace || 1);
 
-          const race = Number(fresh.activeRace || 1);
-          const current = (fresh.results || []).filter(
-            row => row.runnerId === runner.id && Number(row.race) === race
-          );
-
-          let required = 1;
-          if (fresh.mode === "ccf") required = 4;
-          else if (fresh.mode === "exam500") required = 2;
-          else if (fresh.trainingTool === "chrono") {
-            const distances = Array.isArray(fresh.chronoSeriesDistances)
-              ? fresh.chronoSeriesDistances
-              : [];
-            const distance = fresh.chronoPlanMode === "series"
-              ? Number(distances[race - 1] || fresh.totalDistance || 0)
-              : Number(fresh.totalDistance || 0);
-            const withSplits = fresh.chronoPlanMode === "series"
-              ? !!fresh.chronoSeriesWithSplits
-              : fresh.chronoSingleWithSplits !== false;
-            const split = withSplits ? Number(fresh.splitDistance || distance) : distance;
-            required = Math.max(1, Math.floor(distance / Math.max(1, split)));
-          }
-
-          if (current.length > 0 && current.length < required) {
-            fresh.results = (fresh.results || []).filter(
-              row => !(row.runnerId === runner.id && Number(row.race) === race)
-            );
-          }
-
           if (fresh.activeRunnerId === runner.id) {
             const next = (fresh.runners || []).find(r => !r.stopped && r.id !== runner.id);
             fresh.activeRunnerId = next?.id || null;
