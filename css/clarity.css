@@ -2082,3 +2082,30 @@ input:checked + span {
   }
 
 }
+
+
+/* Repères de configuration : bleu entraînement, vert 2 × 800, ocre 3 × 500. */
+#setupPanel > .modeGrid.twoModes > .modeCard:nth-child(1){--mode-accent:#3b75ba;--mode-wash:#edf4ff;--mode-ink:#254f7d;--mode-line:#bed1eb}
+#setupPanel > .modeGrid.twoModes > .modeCard:nth-child(2){--mode-accent:#438c70;--mode-wash:#edf7f1;--mode-ink:#285e49;--mode-line:#bedaca}
+#setupPanel > .modeGrid.twoModes > .modeCard:nth-child(3){--mode-accent:#b3893c;--mode-wash:#fbf5e8;--mode-ink:#775923;--mode-line:#e4d4af}
+#setupPanel > .modeGrid.twoModes > .modeCard > span{background:var(--mode-wash);border:2px solid var(--mode-line);border-left:6px solid var(--mode-accent);box-shadow:0 5px 16px #0f172a06}
+#setupPanel > .modeGrid.twoModes > .modeCard strong{color:var(--mode-ink)}
+#setupPanel > .modeGrid.twoModes > .modeCard small{color:#526276}
+#setupPanel > .modeGrid.twoModes > .modeCard input:checked + span{background:var(--mode-wash);border-color:var(--mode-accent);box-shadow:inset 0 0 0 1px var(--mode-accent),0 8px 22px #0f172a0c}
+#setupPanel > .modeGrid.twoModes > .modeCard input:checked + span::after{background:var(--mode-accent)}
+#setupPanel .modeCard input:focus-visible + span{outline:3px solid #0f172a;outline-offset:3px}
+#trainingToolSelector{padding:18px;border:1px solid #c9d9ef;border-left:5px solid #3b75ba;border-radius:22px;background:#f1f6fd}
+#trainingToolSelector .trainingToolTitle{color:#254f7d}
+#trainingToolSelector .trainingToolCard > span{background:#fff;border-color:#d2deec;box-shadow:none}
+#trainingToolSelector .trainingToolCard input:checked + span{border-color:#3b75ba;background:#e8f1ff;box-shadow:inset 0 0 0 1px #3b75ba,0 5px 16px #3b75ba14}
+#trainingToolSelector .trainingToolCard input:checked + span::after{background:#3b75ba}
+#trainingToolSelector .trainingToolCard strong{color:#254f7d}
+#runnerSetupBlock{padding:20px;border:1px solid #c7ddcf;border-left:5px solid #438c70;border-radius:22px;background:#f2f8f4}
+#runnerSetupBlock > h3{color:#285e49}
+#runnerSetupBlock .estimateBox{background:#fff}
+#ccfConfig{background:#edf7f1;border-color:#bedaca;border-left-color:#438c70}
+#ccfConfig strong{color:#285e49}
+#exam500Config{background:#fbf5e8;border-color:#e4d4af;border-left-color:#b3893c}
+#exam500Config strong{color:#775923}
+@media(min-width:1051px){#setupPanel > .modeGrid.twoModes{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}#setupPanel > .modeGrid.twoModes > .modeCard > span{height:100%;min-height:150px;padding:20px 42px 20px 18px}}
+@media(max-width:760px){#trainingToolSelector,#runnerSetupBlock{padding:14px;border-radius:18px}}

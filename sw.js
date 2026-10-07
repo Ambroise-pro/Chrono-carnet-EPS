@@ -1,11 +1,11 @@
-const CACHE = "chrono-carnet-v59";
+const CACHE = "chrono-carnet-v60";
 
 const APP = [
   "/",
   "/index.html",
 
   "/css/app.css?v=4.4.3",
-  "/css/clarity.css?v=2",
+  "/css/clarity.css?v=3",
 
   "/js/app.js?v=59",
   "/js/v44.js?v=2",
