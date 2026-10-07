@@ -2194,3 +2194,19 @@ input:checked + span {
   #setupPanel[data-step="tools"] .trainingToolsGrid { grid-template-columns: 1fr; gap: 14px; }
   #setupPanel[data-step="tools"] .trainingToolCard > span { min-height: 130px; padding: 24px 40px; border-radius: 22px; }
 }
+
+/* Distinct, restrained colors for each tool. */
+#trainingToolSelector .trainingToolCard:has(input[value="simple"]) { --tool-accent: #3b75ba; --tool-wash: #edf4ff; --tool-line: #bed1eb; --tool-ink: #254f7d; }
+#trainingToolSelector .trainingToolCard:has(input[value="chrono"]) { --tool-accent: #438c70; --tool-wash: #edf7f1; --tool-line: #bedaca; --tool-ink: #285e49; }
+#trainingToolSelector .trainingToolCard:has(input[value="timer"]) { --tool-accent: #b3893c; --tool-wash: #fbf5e8; --tool-line: #e4d4af; --tool-ink: #775923; }
+#trainingToolSelector .trainingToolCard:has(input[value="vma"]) { --tool-accent: #8264ad; --tool-wash: #f4effa; --tool-line: #d4c7e6; --tool-ink: #614483; }
+#setupPanel[data-step="tools"] #trainingToolSelector .trainingToolCard > span {
+  background: var(--tool-wash); border-color: var(--tool-line); border-left-color: var(--tool-accent);
+}
+#setupPanel[data-step="tools"] #trainingToolSelector .trainingToolCard strong { color: var(--tool-ink); }
+#setupPanel[data-step="tools"] #trainingToolSelector .trainingToolCard small { color: #526276; }
+#setupPanel[data-step="tools"] #trainingToolSelector .trainingToolCard input:checked + span {
+  background: var(--tool-wash); border-color: var(--tool-accent);
+  box-shadow: inset 0 0 0 1px var(--tool-accent), 0 8px 22px #0f172a0c;
+}
+#setupPanel[data-step="tools"] #trainingToolSelector .trainingToolCard input:checked + span::after { background: var(--tool-accent); }
