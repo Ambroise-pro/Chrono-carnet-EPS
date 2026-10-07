@@ -652,7 +652,7 @@
 
           if ($("lapBtn")) {
             $("lapBtn").textContent =
-              "TOUR";
+              lapActionLabel();
           }
 
         },
@@ -2251,7 +2251,7 @@
 
     if ($("lapBtn")) {
       $("lapBtn").textContent =
-        "TOUR";
+        lapActionLabel();
     }
 
   }
@@ -3363,14 +3363,84 @@ return null;
      AFFICHAGE CHRONO
   ========================================================= */
 
+  function lapActionLabel() {
+    if (isSimple() || isTimed()) {
+      return "TOUR";
+    }
+
+    const runner =
+      activeRunner();
+
+    const recorded =
+      runner
+        ? rr(
+            runner.id,
+            state.activeRace
+          ).length
+        : 0;
+
+    const required =
+      requiredSplits(
+        state.activeRace
+      );
+
+    return recorded >=
+      Math.max(
+        0,
+        required - 1
+      )
+        ? "ARRIVÉE"
+        : "TOUR";
+  }
+
+
   function startReminderText() {
-    if (isSimple()) return "Chrono libre : appuyez sur DÉPART, puis sur STOP à la fin.";
-    if (isTimed()) return `Course au temps : appuyez sur +1 TOUR à chaque tour de ${currentTrackDistance()} m. À la fin, ajoutez la distance supplémentaire.`;
-    const distance = raceDistance();
-    const split = raceSplitDistance();
-    return split < distance
-      ? `Avec temps intermédiaires : appuyez sur TOUR à chaque passage de ${split} m, y compris à l’arrivée (${distance} m).`
-      : `Sans temps intermédiaire : appuyez une seule fois sur TOUR à l’arrivée (${distance} m).`;
+    if (isSimple()) {
+      return "Chrono libre : DÉPART puis STOP à la fin.";
+    }
+
+    if (isTimed()) {
+      return `À chaque tour de ${currentTrackDistance()} m : appuie sur +1 TOUR. À la fin, ajoute la distance supplémentaire.`;
+    }
+
+    const distance =
+      raceDistance();
+
+    const split =
+      raceSplitDistance();
+
+    const runner =
+      activeRunner();
+
+    const recorded =
+      runner
+        ? rr(
+            runner.id,
+            state.activeRace
+          ).length
+        : 0;
+
+    const nextPass =
+      recorded + 1;
+
+    const nextDistance =
+      Math.min(
+        distance,
+        nextPass * split
+      );
+
+    if (split >= distance) {
+      return `Aucun intermédiaire · à ${distance} m, appuie sur ARRIVÉE pour valider la course.`;
+    }
+
+    if (
+      nextDistance >=
+      distance
+    ) {
+      return `Dernier passage · à ${distance} m, appuie sur ARRIVÉE pour valider la course.`;
+    }
+
+    return `Temps intermédiaires tous les ${split} m · prochain passage : ${nextDistance} m → appuie sur TOUR.`;
   }
 
   function projectionSource(runnerId) {
@@ -3436,8 +3506,14 @@ return null;
     timerCard.classList.toggle("runner-green", tone === "green");
     timerCard.classList.toggle("runner-blue", tone === "blue");
 
-    setVisible("startReminder", !running);
-    $("startReminder").textContent = startReminderText();
+    setVisible(
+      "startReminder",
+      !isSimple() ||
+      !running
+    );
+
+    $("startReminder").textContent =
+      startReminderText();
 
 
     if (
@@ -3686,6 +3762,14 @@ return null;
         !r ||
         done(r.id);
 
+
+      if (
+        performance.now() >=
+        lapLockedUntil
+      ) {
+        $("lapBtn").textContent =
+          lapActionLabel();
+      }
 
       $("lapBtn").disabled =
         !running ||
@@ -7143,7 +7227,7 @@ return null;
   function renderNetworkStatus() {
     $("offlineBadge").textContent = updatePending
       ? "Mise à jour prête · retour aux paramètres"
-      : navigator.onLine ? "En ligne · v67" : "Hors ligne · v67";
+      : navigator.onLine ? "En ligne · v68" : "Hors ligne · v68";
   }
 
   function applyUpdateWhenSafe() {
@@ -7213,7 +7297,7 @@ return null;
         checkForUpdate();
       })
       .catch(() => {
-        $("offlineBadge").textContent = "Hors ligne non disponible · v67";
+        $("offlineBadge").textContent = "Hors ligne non disponible · v68";
       });
 
     document.addEventListener("visibilitychange", () => {
