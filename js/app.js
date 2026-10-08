@@ -7352,6 +7352,129 @@ return null;
   }
 
 
+  /* =========================================================
+     QR ÉLÈVES — CHRONO PERFORMANCE
+     Le professeur encode les réglages dans une URL ; l'élève
+     scanne avec l'appareil photo et la course est préparée.
+  ========================================================= */
+
+  function b64urlEncode(text) {
+    const bytes = new TextEncoder().encode(text);
+    let bin = "";
+    bytes.forEach(b => { bin += String.fromCharCode(b); });
+    return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+
+  function b64urlDecode(text) {
+    const b64 = text.replace(/-/g, "+").replace(/_/g, "/");
+    const bin = atob(b64 + "=".repeat((4 - b64.length % 4) % 4));
+    return new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0)));
+  }
+
+  function chronoShareUrl() {
+    const series = state.chronoPlanMode === "series";
+    const cfg = series
+      ? { p: "s", d: state.chronoSeriesDistances, i: state.chronoSeriesWithSplits ? 1 : 0 }
+      : { p: "u", d: state.totalDistance, i: state.chronoSingleWithSplits ? 1 : 0,
+          t: state.targetMs || 0 };
+    cfg.s = state.splitDistance;
+    cfg.m = state.displayMode;
+    return location.origin + "/?c=" + b64urlEncode(JSON.stringify(cfg));
+  }
+
+  function applySharedChrono(cfg) {
+    const num = (v, min, max) => Math.min(max, Math.max(min, Math.round(Number(v)) || min));
+    state.mode = "training";
+    state.trainingTool = "chrono";
+    state.splitDistance = num(cfg.s, 1, 10000);
+    state.displayMode = ["lap", "cumulative", "both"].includes(cfg.m) ? cfg.m : "both";
+    if (cfg.p === "s") {
+      const d = (Array.isArray(cfg.d) ? cfg.d : []).slice(0, 30).map(x => num(x, 1, 10000));
+      if (!d.length) throw new Error("série vide");
+      state.chronoPlanMode = "series";
+      state.chronoSeriesDistances = d;
+      state.chronoSeriesText = d.join(" ");
+      state.chronoSeriesWithSplits = cfg.i === 1;
+      state.targetMs = null;
+    } else {
+      state.chronoPlanMode = "single";
+      state.totalDistance = num(cfg.d, 1, 100000);
+      state.chronoSingleWithSplits = cfg.i === 1;
+      state.targetMs = Number(cfg.t) > 0 ? num(cfg.t, 1, 86400000) : null;
+    }
+    state.view = "setup";
+    save();
+  }
+
+  function importSharedChrono() {
+    let raw = null;
+    try { raw = new URLSearchParams(location.search).get("c"); } catch {}
+    if (!raw) return;
+    try {
+      history.replaceState(null, "", location.pathname);
+    } catch {}
+    if (state.view !== "setup" && state.runners.length &&
+        !confirm("Une séance est en cours. La remplacer par la course du QR code ?")) {
+      return;
+    }
+    try {
+      applySharedChrono(JSON.parse(b64urlDecode(raw)));
+      setupStep = "runners";
+      toast("Course chargée depuis le QR code");
+    } catch (error) {
+      console.error("QR élèves invalide", error);
+      toast("QR code invalide.");
+    }
+  }
+
+  function showChronoShareQr() {
+    readConfig();
+    save();
+    let d = $("chronoShareDialog");
+    if (!d) {
+      d = document.createElement("dialog");
+      d.id = "chronoShareDialog";
+      d.innerHTML =
+        '<div class="dialogPanel">' +
+        '<h3>QR code de la course</h3>' +
+        '<p id="chronoShareSummary"></p>' +
+        '<div id="chronoShareBox" style="display:flex;justify-content:center;margin:18px"></div>' +
+        '<p>Les élèves scannent avec l’appareil photo : la course est préparée automatiquement.</p>' +
+        '<button id="chronoShareClose" class="btn soft full">Fermer</button>' +
+        '</div>';
+      document.body.appendChild(d);
+      $("chronoShareClose").onclick = () => d.close();
+    }
+    const series = state.chronoPlanMode === "series";
+    const withSplits = series ? state.chronoSeriesWithSplits : state.chronoSingleWithSplits;
+    $("chronoShareSummary").textContent =
+      (series ? state.chronoSeriesDistances.map(x => x + " m").join(" → ") : state.totalDistance + " m") +
+      (withSplits ? " · intermédiaires tous les " + state.splitDistance + " m" : " · temps final seul") +
+      (!series && state.targetMs ? " · cible " + fmt(state.targetMs) : "");
+    const box = $("chronoShareBox");
+    box.innerHTML = "";
+    if (window.QRCode) {
+      try {
+        new QRCode(box, {
+          text: chronoShareUrl(),
+          width: 260,
+          height: 260,
+          correctLevel: QRCode.CorrectLevel.M
+        });
+      } catch (error) {
+        console.error("QR generation failed", error);
+        box.innerHTML = "<p>Impossible de générer le QR code.</p>";
+      }
+    } else {
+      box.innerHTML = "<p>Générateur QR indisponible. Ouvre une fois l’application avec Internet avant le cours.</p>";
+    }
+    d.showModal();
+  }
+
+  $("shareChronoQrBtn").onclick = showChronoShareQr;
+
+  importSharedChrono();
+
   render();
 
   renderNetworkStatus();
