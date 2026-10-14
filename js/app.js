@@ -133,7 +133,8 @@
         stopped: !!runner.stopped,
         stoppedReason: runner.stoppedReason || "",
         stoppedAt: runner.stoppedAt || null,
-        stoppedRace: runner.stoppedRace || null
+        stoppedRace: runner.stoppedRace || null,
+        stoppedOnlyRaces: Array.isArray(runner.stoppedOnlyRaces) ? runner.stoppedOnlyRaces : []
       }))
     : [];
 
@@ -703,11 +704,11 @@
     ) || null;
 
 
-  const runnerStopped = id =>
-    !!state.runners.find(
-      runner =>
-        runner.id === id &&
-        runner.stopped
+  const runnerStopped = (id, race = state.activeRace) =>
+    !!state.runners.find(runner =>
+      runner.id === id &&
+      ((runner.stopped && Number(race) >= Number(runner.stoppedRace || 1)) ||
+       (runner.stoppedOnlyRaces || []).includes(Number(race)))
     );
 
 
@@ -715,7 +716,7 @@
     id,
     race = state.activeRace
   ) =>
-    runnerStopped(id) ||
+    runnerStopped(id,race) ||
     rr(id,race).length >=
     requiredSplits(race);
 
@@ -1838,7 +1839,10 @@
         null,
 
       stoppedRace:
-        null
+        null,
+
+      stoppedOnlyRaces:
+        []
 
     };
 
@@ -4503,7 +4507,7 @@ return null;
             if (
               rows.length <
               requiredSplits(race) &&
-              !r.stopped
+              !runnerStopped(r.id,race)
             ) {
               return null;
             }
@@ -4511,7 +4515,7 @@ return null;
             if (
               !rows.length
             ) {
-              return r.stopped
+              return runnerStopped(r.id,race)
                 ? {
                     d:
                       raceDistance(race),
@@ -4538,7 +4542,7 @@ return null;
                     )
                 ),
               stopped:
-                !!r.stopped &&
+                runnerStopped(r.id,race) &&
                 rows.length <
                   requiredSplits(race)
             };
@@ -4587,11 +4591,11 @@ return null;
         r:
           races,
         status:
-          r.stopped
+          races.some(x => x.stopped)
             ? "medical_stop"
             : "complete",
         statusLabel:
-          r.stopped
+          races.some(x => x.stopped)
             ? "INAPTE_MEDICAL"
             : null,
         stoppedAt:
@@ -4708,11 +4712,11 @@ return null;
           new Date()
             .toISOString(),
         status:
-          r.stopped
+          [1,2,3].some(n => runnerStopped(r.id,n))
             ? "medical_stop"
             : "complete",
         statusLabel:
-          r.stopped
+          [1,2,3].some(n => runnerStopped(r.id,n))
             ? "INAPTE_MEDICAL"
             : null,
         stoppedAt:
@@ -4736,9 +4740,8 @@ return null;
 
       if (
         races.some(
-          a => a.length < 2
-        ) &&
-        !r.stopped
+          (a,i) => a.length < 2 && !runnerStopped(r.id,i+1)
+        )
       ) {
         return null;
       }
@@ -4781,7 +4784,7 @@ return null;
                     )
                   : null,
               stopped:
-                !!r.stopped &&
+                runnerStopped(r.id,index+1) &&
                 a.length < 2
             })
           ),
@@ -4813,7 +4816,7 @@ return null;
 
     if (
       a.length < 4 &&
-      !r.stopped
+      !runnerStopped(r.id,race)
     ) {
 
       return null;
@@ -4872,12 +4875,12 @@ return null;
           : null,
 
       status:
-        r.stopped
+        runnerStopped(r.id,race)
           ? "medical_stop"
           : "complete",
 
       statusLabel:
-        r.stopped
+        runnerStopped(r.id,race)
           ? "INAPTE_MEDICAL"
           : null,
 
@@ -4972,7 +4975,7 @@ return null;
     $("teacherQrTitle").textContent =
       isExam500()
         ? `${r.last.toUpperCase()} ${r.first} · 3 × 500 m`
-        : r.stopped
+        : runnerStopped(r.id,race)
           ? `${r.last.toUpperCase()} ${r.first} · ARRÊT MÉDICAL · 800 n°${race}`
           : `${r.last.toUpperCase()} ${r.first} · 800 n°${race}`;
 
@@ -5189,22 +5192,10 @@ return null;
           r => {
 
             const racesForQr =
-              r.stopped
-                ? [
-                    Number(
-                      r.stoppedRace ||
-                      (
-                        rr(r.id,2).length
-                          ? 2
-                          : 1
-                      )
-                    )
-                  ]
-                : [1,2].filter(
-                    race =>
-                      rr(r.id,race).length >=
-                      requiredSplits(race)
-                  );
+              [1,2].filter(race =>
+                runnerStopped(r.id,race) ||
+                rr(r.id,race).length >= requiredSplits(race)
+              );
 
             const buttons =
               racesForQr
@@ -5221,7 +5212,7 @@ return null;
                     `data-qr-race="${race}">` +
                     `QR prof · ${esc(r.last.toUpperCase())} · ` +
                     (
-                      r.stopped
+                      runnerStopped(r.id,race)
                         ? `ARRÊT MÉDICAL · 800 n°${race}`
                         : `800 n°${race}`
                     ) +
@@ -5607,9 +5598,7 @@ return null;
 
       if (!running) {
         state.runners.forEach(item => {
-          const complete = item.stopped
-            ? true
-            : isSimple()
+          const complete = isSimple()
               ? elapsedMs > 0
               : isTimed()
               ? !!timedRunFor(item.id)
