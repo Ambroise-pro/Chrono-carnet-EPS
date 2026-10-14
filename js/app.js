@@ -1971,18 +1971,10 @@
             '</span>' +
             '<input class="exam500EstimateInput" data-runner="' +
             r.id +
-            '" inputmode="numeric" placeholder="Ex. 145 = 1:45" value="' +
+            '" inputmode="numeric" pattern="[0-9]*" placeholder="Ex. 134 pour 1 min 34 s" value="' +
             (
               r[key]
-                ? fmt(r[key])
-                    .replace(
-                      /^00:/,
-                      ""
-                    )
-                    .replace(
-                      /\.00$/,
-                      ""
-                    )
+                ? String(Math.floor(r[key] / 60000)) + String(Math.floor(r[key] / 1000) % 60).padStart(2, "0")
                 : ""
             ) +
             '">' +
@@ -2024,7 +2016,7 @@
 
             $("exam500EstimateError")
               .textContent =
-                "Saisis un temps valide, par exemple 145 pour 1:45 ou 1:45.";
+                "Saisis uniquement les chiffres, par exemple 134 pour 1 min 34 s.";
 
             input.focus();
 
