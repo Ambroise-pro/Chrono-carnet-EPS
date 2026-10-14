@@ -104,7 +104,9 @@
 
     button.onclick = () => {
       const state = readState();
-      const runners = (state.runners || []).filter(r => !r.stopped);
+      const runners = (state.runners || []).filter(r =>
+        !(r.stopped && Number(state.activeRace || 1) >= Number(r.stoppedRace || 1)) &&
+        !(r.stoppedOnlyRaces || []).includes(Number(state.activeRace || 1)));
 
       if (!runners.length) {
         alert("Aucun élève à neutraliser.");
@@ -197,7 +199,9 @@
       "hidden",
       state.view !== "performance" ||
       simpleTraining ||
-      !(state.runners || []).some(r => !r.stopped)
+      !(state.runners || []).some(r =>
+        !(r.stopped && Number(state.activeRace || 1) >= Number(r.stoppedRace || 1)) &&
+        !(r.stoppedOnlyRaces || []).includes(Number(state.activeRace || 1)))
     );
   }
 
