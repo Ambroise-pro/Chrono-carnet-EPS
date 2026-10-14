@@ -119,48 +119,63 @@
         document.body.appendChild(dialog);
       }
 
+      const race = Number(state.activeRace || 1);
+      const isStopped = r => !!r.stopped && race >= Number(r.stoppedRace || 1) ||
+        (r.stoppedOnlyRaces || []).includes(race);
+      const available = runners.filter(r => !isStopped(r));
       dialog.innerHTML =
         '<div class="dialogPanel">' +
-          '<h3>✚ Infirmerie · arrêt élève</h3>' +
-          '<p>Choisis l’élève qui doit arrêter. Le motif enregistré sera <strong>Inapte / arrêt médical</strong>.</p>' +
-          runners.map(r =>
-            '<button type="button" class="choiceBtn" data-stop-id="' + r.id + '">' +
-              '<strong>' + nameOf(r) + '</strong>' +
-              '<span>' + String(r.classroom || "") + '</span>' +
-            '</button>'
-          ).join("") +
-          '<button type="button" id="stopRunnerCancel" class="btn soft full">Annuler</button>' +
+        '<h3>✚ Infirmerie · arrêt élève</h3>' +
+        '<p>Sélectionne le coureur, puis la portée de l’arrêt médical.</p>' +
+        available.map(r =>
+          '<button type="button" class="choiceBtn" data-stop-id="' + r.id + '">' +
+          '<strong>' + nameOf(r) + '</strong>' +
+          '<span>' + String(r.classroom || "") + '</span></button>'
+        ).join("") +
+        '<button type="button" id="stopRunnerCancel" class="btn soft full">Annuler</button>' +
         '</div>';
 
       dialog.querySelectorAll("[data-stop-id]").forEach(choice => {
         choice.onclick = () => {
-          const fresh = readState();
-          const runner = (fresh.runners || []).find(r => r.id === choice.dataset.stopId);
+          const id = choice.dataset.stopId;
+          const runner = (readState().runners || []).find(r => String(r.id) === id);
           if (!runner) return;
-
-          if (!confirm(
-            "Marquer " + nameOf(runner) + " en « Inapte / arrêt médical » ?\n\n" +
-            "Les courses déjà terminées seront conservées. Les courses restantes seront neutralisées."
-          )) return;
-
-          runner.stopped = true;
-          runner.stoppedReason = "Inapte / arrêt médical";
-          runner.stoppedAt = new Date().toISOString();
-          runner.stoppedRace = Number(fresh.activeRace || 1);
-
-          if (fresh.activeRunnerId === runner.id) {
-            const next = (fresh.runners || []).find(r => !r.stopped && r.id !== runner.id);
-            fresh.activeRunnerId = next?.id || null;
-          }
-
-          writeState(fresh);
-          dialog.close();
-
-          window.dispatchEvent(new CustomEvent("chrono-runner-stopped", {
-            detail: { runnerId: runner.id }
-          }));
-
-          window.location.reload();
+          dialog.querySelector(".dialogPanel").innerHTML =
+            '<h3>✚ Infirmerie · ' + nameOf(runner) + '</h3>' +
+            '<p>Choisis les courses à neutraliser. Les chronos déjà enregistrés restent conservés.</p>' +
+            '<button type="button" class="choiceBtn" id="medicalThisRace"><strong>Cette course uniquement</strong><span>Reprise possible à la course suivante</span></button>' +
+            '<button type="button" class="choiceBtn" id="medicalAllRaces"><strong>Cette course et les suivantes</strong><span>Arrêt pour le reste de la séance</span></button>' +
+            '<button type="button" class="btn soft full" id="medicalBack">Retour</button>';
+          dialog.querySelector("#medicalBack").onclick = () => dialog.close();
+          const apply = permanent => {
+            const fresh = readState();
+            const target = (fresh.runners || []).find(r => String(r.id) === id);
+            if (!target) return;
+            const current = Number(fresh.activeRace || 1);
+            if (permanent) {
+              target.stopped = true;
+              target.stoppedRace = current;
+            } else {
+              target.stoppedOnlyRaces = Array.isArray(target.stoppedOnlyRaces) ? target.stoppedOnlyRaces : [];
+              if (!target.stoppedOnlyRaces.includes(current)) target.stoppedOnlyRaces.push(current);
+            }
+            target.stoppedReason = "Inapte / arrêt médical";
+            target.stoppedAt = new Date().toISOString();
+            if (fresh.activeRunnerId === target.id) {
+              const next = (fresh.runners || []).find(r => r.id !== target.id &&
+                !(r.stopped && current >= Number(r.stoppedRace || 1)) &&
+                !(r.stoppedOnlyRaces || []).includes(current));
+              fresh.activeRunnerId = next?.id || null;
+            }
+            writeState(fresh);
+            dialog.close();
+            window.dispatchEvent(new CustomEvent("chrono-runner-stopped", {
+              detail: { runnerId: target.id, race: current, permanent }
+            }));
+            window.location.reload();
+          };
+          dialog.querySelector("#medicalThisRace").onclick = () => apply(false);
+          dialog.querySelector("#medicalAllRaces").onclick = () => apply(true);
         };
       });
 
