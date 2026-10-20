@@ -7414,7 +7414,7 @@ return null;
   function renderNetworkStatus() {
     $("offlineBadge").textContent = updatePending
       ? "Mise à jour prête · retour aux paramètres"
-      : navigator.onLine ? "En ligne · v71" : "Hors ligne · v71";
+      : navigator.onLine ? "En ligne · v87" : "Hors ligne · v87";
   }
 
   function applyUpdateWhenSafe() {
@@ -7484,7 +7484,7 @@ return null;
         checkForUpdate();
       })
       .catch(() => {
-        $("offlineBadge").textContent = "Hors ligne non disponible · v71";
+        $("offlineBadge").textContent = "Hors ligne non disponible · v87";
       });
 
     document.addEventListener("visibilitychange", () => {
