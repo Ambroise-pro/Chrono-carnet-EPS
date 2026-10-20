@@ -38,7 +38,7 @@
 
   <link
     rel="stylesheet"
-    href="/css/laser-run.css?v=2"
+    href="/css/laser-run.css?v=3"
   >
 
   <title>
@@ -1708,10 +1708,16 @@
     <section id="laserRunPanel" class="card laserRun hidden" aria-labelledby="lrTitle">
 
       <div class="lrHead">
-        <button id="lrBack" type="button" class="btn ghost">← Accueil</button>
-        <div>
-          <p class="eyebrow">Observation</p>
-          <h2 id="lrTitle">Laser Run</h2>
+        <div class="lrHeadLeft">
+          <button id="lrBack" type="button" class="btn ghost">← Accueil</button>
+          <div>
+            <p class="eyebrow" id="lrKicker">Laser Run · observation</p>
+            <h2 id="lrTitle">Laser Run <small id="lrIdentity"></small></h2>
+          </div>
+        </div>
+        <div class="lrHeadRight">
+          <span id="lrStatus" class="lrPill hidden"></span>
+          <button id="lrReset" type="button" class="btn ghost hidden">Réinitialiser</button>
         </div>
       </div>
 
@@ -1760,69 +1766,113 @@
 
       <div id="lrLive" class="hidden">
 
-        <div id="lrBoard" class="lrBoard">
-          <span id="lrStatus" class="statusPill idle">Prêt</span>
-          <p class="label">Temps total · <span id="lrRunnerName"></span></p>
-          <div id="lrTotal" class="lrTotal">0:00.0</div>
-          <div class="lrMetrics">
-            <div class="lrMetric"><span>Séance de tir</span><strong id="lrSessionCount">0 / 0</strong></div>
-            <div class="lrMetric"><span>Temps du tir en cours</span><strong id="lrShootTime">0:00.0</strong></div>
-            <div class="lrMetric"><span>Tirs ratés</span><strong id="lrMissCount">0</strong></div>
+        <div id="lrRunView">
+          <div class="lrRow">
+            <div class="lrBoard lrBoardRun">
+              <div>
+                <p class="lrLabel">Temps total</p>
+                <div id="lrTotal" class="lrTotal">0:00.0</div>
+              </div>
+              <div class="lrMini">
+                <div><span>Temps de course</span><strong id="lrRunTime">0:00.0</strong></div>
+                <div><span>Temps de tir</span><strong id="lrShootTotal">0:00.0</strong></div>
+              </div>
+            </div>
+
+            <div class="lrAction">
+              <div class="lrActionHead">
+                <strong id="lrLapInfo"></strong>
+                <span id="lrLapStats"></span>
+              </div>
+              <button id="lrLap" type="button" class="lrBigBtn lrLapBtn">
+                <strong id="lrLapLabel">Tour complété</strong>
+                <span id="lrLapSub"></span>
+              </button>
+              <div class="lrSecond">
+                <button id="lrUndoLap" type="button" class="btn soft">Annuler le dernier passage</button>
+                <button id="lrSkip" type="button" class="btn lrSkipBtn">Passer au tir sans finir le tour</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="lrTrack">
+            <div class="lrTrackHead"><strong>Parcours</strong><span id="lrTrackInfo"></span></div>
+            <div id="lrSteps" class="lrSteps" aria-hidden="true"></div>
           </div>
         </div>
 
-        <div id="lrRunControls" class="lrControls">
-          <p id="lrLapInfo" class="lrLapInfo"></p>
-          <div id="lrLapDots" class="lrDots" aria-hidden="true"></div>
-          <button id="lrLap" type="button" class="lrBigBtn lrLapBtn">
-            <strong id="lrLapLabel">Tour complété</strong>
-            <span id="lrLapSub"></span>
-          </button>
+        <div id="lrShootView" class="hidden">
+          <div class="lrRow lrRowShort">
+            <div class="lrBoard lrBoardShoot">
+              <p class="lrLabel">Temps de cette séance de tir</p>
+              <div id="lrShootTime" class="lrTotal">0:00.0</div>
+            </div>
+            <div class="lrTotalCard">
+              <p class="lrLabel">Temps total</p>
+              <strong id="lrTotal2">0:00.0</strong>
+              <span>Tirs ratés dans la séance : <b id="lrMissCount">0</b></span>
+            </div>
+          </div>
+
+          <div class="lrShootArea">
+            <div class="lrTargets">
+              <div id="lrLeds" class="lrLeds" aria-hidden="true"></div>
+              <strong id="lrHitCount" class="lrHitCount"></strong>
+            </div>
+            <div class="lrShotRow">
+              <button id="lrMiss" type="button" class="lrBigBtn lrMissBtn"><strong>Tir raté</strong><span id="lrMissSub"></span></button>
+              <button id="lrHit" type="button" class="lrBigBtn lrHitBtn"><strong>Tir réussi</strong><span>5 réussis = repart tout de suite</span></button>
+            </div>
+            <div class="lrSecond">
+              <button id="lrUndoShot" type="button" class="btn">Annuler le dernier tir</button>
+              <button id="lrExpire" type="button" class="btn">Temps expiré · repartir en course</button>
+            </div>
+          </div>
         </div>
 
-        <div id="lrShootControls" class="lrControls lrShoot hidden">
-          <div id="lrLeds" class="lrLeds" aria-label="Tirs réussis">
-            <i></i><i></i><i></i><i></i><i></i>
-          </div>
-          <p id="lrShootInfo" class="lrLapInfo"></p>
-          <div class="lrShotRow">
-            <button id="lrMiss" type="button" class="lrBigBtn lrMissBtn"><strong>Tir raté</strong></button>
-            <button id="lrHit" type="button" class="lrBigBtn lrHitBtn"><strong>Tir réussi</strong><span id="lrHitSub">0 / 5</span></button>
-          </div>
-          <button id="lrExpire" type="button" class="btn soft full">Temps expiré · repartir en course</button>
-        </div>
-
-        <button id="lrReset" type="button" class="btn soft full lrReset">Réinitialiser la course</button>
       </div>
 
       <div id="lrResults" class="hidden">
-        <h3 class="lrResultTitle">Résultats · <span id="lrFinalName"></span> <small id="lrFSex"></small></h3>
-        <div class="lrStats">
-          <div class="statCard"><span>Temps total</span><strong id="lrFTotal"></strong></div>
-          <div class="statCard"><span>Temps de course</span><strong id="lrFRun"></strong></div>
-          <div class="statCard"><span>Temps de tir</span><strong id="lrFShoot"></strong></div>
-          <div class="statCard"><span>Vitesse moyenne</span><strong id="lrFSpeed"></strong></div>
-          <div class="statCard"><span>Moyenne au tour</span><strong id="lrFAvgLap"></strong></div>
-          <div class="statCard"><span>Réussite au tir</span><strong id="lrFRate"></strong></div>
-        </div>
+        <div class="lrResCols">
+          <div class="lrResMain">
+            <div class="lrBoard lrBoardRun lrBoardRes">
+              <div>
+                <p class="lrLabel">Temps total</p>
+                <div id="lrFTotal" class="lrTotal"></div>
+              </div>
+              <div class="lrMini lrMiniRow">
+                <div><span>Course</span><strong id="lrFRun"></strong></div>
+                <div><span>Tir</span><strong id="lrFShoot"></strong></div>
+              </div>
+            </div>
 
-        <div class="lrDetailGrid">
-          <div>
-            <h4>Tours (<span id="lrLapCount">0</span>)</h4>
-            <div id="lrLapList" class="lrList"></div>
+            <div class="lrStats">
+              <div class="statCard"><span>Vitesse moyenne</span><strong id="lrFSpeed"></strong><small id="lrFSpeedKmh"></small></div>
+              <div class="statCard"><span>Moyenne au tour</span><strong id="lrFAvgLap"></strong><small id="lrFLapsInfo"></small></div>
+              <div class="statCard"><span>Réussite au tir</span><strong id="lrFRate"></strong><small id="lrFRateInfo"></small></div>
+            </div>
+
+            <div class="lrPanelBox">
+              <strong>Séances de tir (<span id="lrShootCount">0</span>)</strong>
+              <div id="lrShootList" class="lrList"></div>
+            </div>
+
+            <div id="lrLapPanel" class="lrPanelBox hidden">
+              <strong>Détail des tours (<span id="lrLapCount">0</span>)</strong>
+              <div id="lrLapList" class="lrList lrLapGrid"></div>
+            </div>
           </div>
-          <div>
-            <h4>Séances de tir (<span id="lrShootCount">0</span>)</h4>
-            <div id="lrShootList" class="lrList"></div>
+
+          <div class="lrQrCard">
+            <strong>QR professeur</strong>
+            <div id="lrQrBox"></div>
+            <p>À scanner dans le Carnet d’entraînement pour récupérer le résultat de l’élève.</p>
+            <div class="lrQrSpacer"></div>
+            <button id="lrNew" type="button" class="btn primary big full">Nouvelle course</button>
+            <button id="lrToggleLaps" type="button" class="btn soft full">Voir le détail des tours</button>
+            <button id="lrUndoFinish" type="button" class="btn ghost full">Annuler l’arrivée</button>
           </div>
         </div>
-
-        <div class="lrQr">
-          <div id="lrQrBox"></div>
-          <p>À scanner pour récupérer le résultat de l’élève.</p>
-        </div>
-
-        <button id="lrNew" type="button" class="btn primary big full">Nouvelle course</button>
       </div>
 
     </section>
@@ -2005,7 +2055,7 @@
 
 <script src="/js/app.js?v=89"></script>
 <script src="/js/run-safety-ui.js?v=5"></script>
-<script src="/js/laser-run.js?v=2"></script>
+<script src="/js/laser-run.js?v=3"></script>
 
 
 </body>

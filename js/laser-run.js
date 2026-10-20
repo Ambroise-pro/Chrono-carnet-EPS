@@ -31,7 +31,10 @@
     laps: [],
     shoots: [],
     hit: 0,
-    miss: 0
+    miss: 0,
+    seq: "",                   // tirs de la séance en cours : "h" réussi, "m" raté
+    skip: 0,                   // temps de tours non terminés (ms), compté dans la course
+    pend: null                 // comment on est entré au tir, pour pouvoir annuler
   });
 
   let s;
@@ -96,7 +99,7 @@
   }
 
   function elapsed(now) {
-    const done = sum(s.laps) + sum(s.shoots.map(x => x.time));
+    const done = sum(s.laps) + s.skip + sum(s.shoots.map(x => x.time));
     return done + (isLive() ? now - s.segStart : 0);
   }
 
@@ -121,6 +124,9 @@
     s.shoots = [];
     s.hit = 0;
     s.miss = 0;
+    s.seq = "";
+    s.skip = 0;
+    s.pend = null;
     s.phase = "running";
     s.segStart = Date.now();
     save();
@@ -129,23 +135,43 @@
     loop();
   }
 
+  function enterShoot(pend) {
+    s.phase = "shooting";
+    s.hit = 0;
+    s.miss = 0;
+    s.seq = "";
+    s.pend = pend;
+  }
+
   function lap() {
     if (s.phase !== "running") return;
     const now = Date.now();
-    s.laps.push(now - s.segStart);
+    const dur = now - s.segStart;
+    s.laps.push(dur);
     s.lapsDone++;
     s.segStart = now;
 
     if (s.lapsDone >= s.lapsPer) {
       if (s.sessionsDone >= s.sessions) {
         s.phase = "done";
+        s.pend = { kind: "lap", dur, lapsDone: s.lapsDone - 1 };
         releaseWake();
       } else {
-        s.phase = "shooting";
-        s.hit = 0;
-        s.miss = 0;
+        enterShoot({ kind: "lap", dur, lapsDone: s.lapsDone - 1 });
       }
     }
+    save();
+    render();
+  }
+
+  // Passer au tir sans finir le tour : le temps déjà couru reste dans la course.
+  function skipToShoot() {
+    if (s.phase !== "running" || s.sessionsDone >= s.sessions) return;
+    const now = Date.now();
+    const dur = now - s.segStart;
+    s.skip += dur;
+    s.segStart = now;
+    enterShoot({ kind: "skip", dur, lapsDone: s.lapsDone });
     save();
     render();
   }
@@ -153,6 +179,7 @@
   function hit() {
     if (s.phase !== "shooting" || s.hit >= TARGET) return;
     s.hit++;
+    s.seq += "h";
     if (s.hit >= TARGET) {
       endShoot();
       return;
@@ -164,6 +191,7 @@
   function miss() {
     if (s.phase !== "shooting") return;
     s.miss++;
+    s.seq += "m";
     save();
     render();
   }
@@ -175,11 +203,15 @@
       n: s.sessionsDone + 1,
       time: now - s.segStart,
       hits: s.hit,
-      misses: s.miss
+      misses: s.miss,
+      seq: s.seq,
+      pend: s.pend
     });
     s.sessionsDone++;
     s.hit = 0;
     s.miss = 0;
+    s.seq = "";
+    s.pend = null;
     s.lapsDone = 0;
     s.phase = "running";
     s.segStart = now;
@@ -187,11 +219,79 @@
     render();
   }
 
+  /* ---------- Annulations : le temps continue de courir ---------- */
+
+  // Revient à l'état d'avant l'entrée au tir (dernier tour ou saut de tour).
+  function revertToRunning(pend) {
+    if (pend.kind === "lap") s.laps.pop();
+    else s.skip = Math.max(0, s.skip - pend.dur);
+    s.lapsDone = pend.lapsDone;
+    s.phase = "running";
+    s.segStart -= pend.dur;
+    s.hit = 0;
+    s.miss = 0;
+    s.seq = "";
+    s.pend = null;
+  }
+
+  function undoLap() {
+    if (s.phase !== "running") return;
+    if (s.lapsDone > 0) {
+      const dur = s.laps.pop();
+      s.lapsDone--;
+      s.segStart -= dur;
+    } else if (s.sessionsDone > 0) {
+      // Rouvre la dernière séance de tir.
+      const last = s.shoots.pop();
+      s.sessionsDone--;
+      s.phase = "shooting";
+      s.segStart -= last.time;
+      s.hit = last.hits;
+      s.miss = last.misses;
+      s.seq = last.seq || "h".repeat(last.hits) + "m".repeat(last.misses);
+      s.pend = last.pend || null;
+      s.lapsDone = s.lapsPer;
+    } else {
+      return toastMsg("Rien à annuler.");
+    }
+    save();
+    render();
+  }
+
+  function undoShot() {
+    if (s.phase !== "shooting") return;
+    if (s.seq.length) {
+      const last = s.seq[s.seq.length - 1];
+      s.seq = s.seq.slice(0, -1);
+      if (last === "h") s.hit--;
+      else s.miss--;
+    } else if (s.pend) {
+      revertToRunning(s.pend);
+    } else {
+      return toastMsg("Rien à annuler.");
+    }
+    save();
+    render();
+  }
+
+  function undoFinish() {
+    if (s.phase !== "done" || !s.pend) return;
+    const dur = s.laps.pop();
+    s.lapsDone = s.pend.lapsDone;
+    s.phase = "running";
+    s.segStart = Date.now() - dur;
+    s.pend = null;
+    save();
+    acquireWake();
+    render();
+    loop();
+  }
+
   function resetNow() {
     s = fresh(s);
     clearTimeout(resetTimer);
     resetTimer = 0;
-    $("lrReset").textContent = "Réinitialiser la course";
+    $("lrReset").textContent = "Réinitialiser";
     $("lrReset").classList.remove("lrArmed");
     releaseWake();
     save();
@@ -205,7 +305,7 @@
       btn.classList.add("lrArmed");
       resetTimer = setTimeout(() => {
         resetTimer = 0;
-        btn.textContent = "Réinitialiser la course";
+        btn.textContent = "Réinitialiser";
         btn.classList.remove("lrArmed");
       }, 4000);
       return;
@@ -249,8 +349,39 @@
 
   function renderTimes() {
     const now = Date.now();
-    $("lrTotal").textContent = fmt(elapsed(now));
-    $("lrShootTime").textContent = s.phase === "shooting" ? fmt(now - s.segStart) : "0:00.0";
+    const total = elapsed(now);
+    const shootDone = sum(s.shoots.map(x => x.time));
+    const shootNow = s.phase === "shooting" ? now - s.segStart : 0;
+    $("lrTotal").textContent = fmt(total);
+    $("lrTotal2").textContent = fmt(total);
+    $("lrRunTime").textContent = fmt(total - shootDone - shootNow);
+    $("lrShootTotal").textContent = fmt(shootDone + shootNow);
+    $("lrShootTime").textContent = fmt(shootNow);
+  }
+
+  function renderSteps() {
+    const wrap = $("lrSteps");
+    const html = [];
+    for (let b = 0; b <= s.sessions; b++) {
+      for (let i = 0; i < s.lapsPer; i++) {
+        let st = "todo";
+        if (b < s.sessionsDone) st = "done";
+        else if (b === s.sessionsDone) {
+          if (s.phase === "shooting" || s.phase === "done" || i < s.lapsDone) st = "done";
+          else if (i === s.lapsDone) st = "cur";
+        }
+        html.push('<i class="lrLapPip ' + st + '"></i>');
+      }
+      if (b < s.sessions) {
+        const st = b < s.sessionsDone ? "done" : (b === s.sessionsDone && s.phase === "shooting") ? "cur" : "todo";
+        html.push('<i class="lrShotNode ' + st + '"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><circle cx="11" cy="11" r="3.5"/></svg></i>');
+      }
+    }
+    html.push('<i class="lrFlagNode"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20V3"/><path d="M5 4h11l-2.5 4L16 12H5"/></svg></i>');
+    wrap.innerHTML = html.join("");
+    const totalLaps = s.lapsPer * (s.sessions + 1);
+    $("lrTrackInfo").textContent =
+      totalLaps + " tours · " + s.sessions + " tir" + (s.sessions > 1 ? "s" : "") + " · " + (totalLaps * s.dist) + " m";
   }
 
   function render() {
@@ -261,6 +392,22 @@
     show("lrSetup", setup);
     show("lrLive", live);
     show("lrResults", done);
+
+    $("lrKicker").textContent = done ? "Laser Run · résultats" : setup ? "Laser Run · observation" : "Laser Run · observation";
+    $("lrIdentity").textContent = setup ? "" : "· " + s.classroom + " · " + (s.sex === "M" ? "Garçon" : "Fille");
+    $("lrTitle").firstChild.textContent = setup ? "Laser Run " : displayName() + " ";
+    show("lrStatus", !setup);
+    show("lrReset", live);
+
+    const st = $("lrStatus");
+    if (done) {
+      st.textContent = "Course terminée";
+      st.className = "lrPill lrDone";
+    } else if (live) {
+      const running = s.phase === "running";
+      st.textContent = running ? "En course" : "Au tir · séance " + (s.sessionsDone + 1) + " / " + s.sessions;
+      st.className = "lrPill " + (running ? "lrRun" : "lrShoot");
+    }
 
     if (setup) {
       $("lrLast").value = s.last;
@@ -275,16 +422,8 @@
 
     if (live) {
       const running = s.phase === "running";
-      show("lrRunControls", running);
-      show("lrShootControls", !running);
-
-      const st = $("lrStatus");
-      st.textContent = running ? "En course" : "Au tir";
-      st.className = "statusPill " + (running ? "lrRun" : "lrShoot");
-      $("lrBoard").dataset.phase = s.phase;
-      $("lrRunnerName").textContent = displayName();
-      $("lrSessionCount").textContent = s.sessionsDone + " / " + s.sessions;
-      $("lrMissCount").textContent = String(s.miss);
+      show("lrRunView", running);
+      show("lrShootView", !running);
 
       if (running) {
         const finalBlock = s.sessionsDone >= s.sessions;
@@ -292,26 +431,28 @@
         $("lrLapInfo").textContent = finalBlock
           ? "Tours finaux · tour " + (s.lapsDone + 1) + " / " + s.lapsPer
           : "Avant le tir n°" + (s.sessionsDone + 1) + " · tour " + (s.lapsDone + 1) + " / " + s.lapsPer;
+        $("lrLapStats").textContent = s.laps.length
+          ? "Dernier tour " + fmt(s.laps[s.laps.length - 1]) + " · moyenne " + fmt(sum(s.laps) / s.laps.length)
+          : "Pas encore de tour";
         $("lrLapLabel").textContent = lastLap ? (finalBlock ? "Arrivée" : "Aller au tir") : "Tour complété";
         $("lrLapSub").textContent = lastLap
           ? (finalBlock ? "Dernier tour terminé" : "Dernier tour avant le tir")
-          : "Appuie à chaque passage";
+          : "Appuie à chaque passage devant la ligne";
         $("lrLap").dataset.kind = lastLap ? (finalBlock ? "finish" : "shoot") : "lap";
-
-        const dots = $("lrLapDots");
-        const count = Math.min(s.lapsPer, 20);
-        if (dots.children.length !== count) {
-          dots.innerHTML = "<i></i>".repeat(count);
-        }
-        [...dots.children].forEach((d, i) => {
-          d.className = i < s.lapsDone ? "on" : i === s.lapsDone ? "cur" : "";
-        });
+        show("lrSkip", !finalBlock);
+        $("lrUndoLap").disabled = s.lapsDone === 0 && s.sessionsDone === 0;
+        renderSteps();
       } else {
-        $("lrShootInfo").textContent =
-          "Séance de tir n°" + (s.sessionsDone + 1) + " / " + s.sessions +
-          " · " + s.hit + " / " + TARGET + " réussis";
-        $("lrHitSub").textContent = s.hit + " / " + TARGET;
-        [...$("lrLeds").children].forEach((led, i) => led.classList.toggle("on", i < s.hit));
+        const leds = $("lrLeds");
+        if (leds.children.length !== TARGET) {
+          leds.innerHTML = ("<i><svg viewBox=\"0 0 22 22\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\"><circle cx=\"11\" cy=\"11\" r=\"8\"/><circle cx=\"11\" cy=\"11\" r=\"3.5\"/></svg></i>").repeat(TARGET);
+        }
+        [...leds.children].forEach((led, i) => led.classList.toggle("on", i < s.hit));
+        $("lrHitCount").textContent = s.hit + " / " + TARGET + " réussis";
+        $("lrMissCount").textContent = String(s.miss);
+        $("lrMissSub").textContent = s.miss + " raté" + (s.miss > 1 ? "s" : "") + " dans cette séance";
+        $("lrUndoShot").textContent = s.seq.length ? "Annuler le dernier tir" : "Revenir à la course";
+        $("lrUndoShot").disabled = !s.seq.length && !s.pend;
       }
       renderTimes();
     }
@@ -322,7 +463,7 @@
   function renderResults() {
     const lapTotal = sum(s.laps);
     const shootTotal = sum(s.shoots.map(x => x.time));
-    const total = lapTotal + shootTotal;
+    const total = lapTotal + s.skip + shootTotal;
     const avgLap = s.laps.length ? lapTotal / s.laps.length : 0;
     const speed = lapTotal > 0 ? (s.laps.length * s.dist) / (lapTotal / 1000) : 0;
     const hits = sum(s.shoots.map(x => x.hits));
@@ -330,14 +471,15 @@
     const attempts = hits + misses;
     const rate = attempts ? hits / attempts * 100 : 0;
 
-    $("lrFinalName").textContent = displayName();
-    $("lrFSex").textContent = "· " + s.classroom + " · " + (s.sex === "M" ? "Garçon" : "Fille");
     $("lrFTotal").textContent = fmt(total);
-    $("lrFRun").textContent = fmt(lapTotal);
+    $("lrFRun").textContent = fmt(lapTotal + s.skip);
     $("lrFShoot").textContent = fmt(shootTotal);
-    $("lrFSpeed").textContent = speed.toFixed(2) + " m/s · " + (speed * 3.6).toFixed(1) + " km/h";
+    $("lrFSpeed").textContent = speed.toFixed(2) + " m/s";
+    $("lrFSpeedKmh").textContent = (speed * 3.6).toFixed(1) + " km/h";
     $("lrFAvgLap").textContent = fmt(avgLap);
-    $("lrFRate").textContent = rate.toFixed(0) + " % (" + hits + "/" + attempts + ")";
+    $("lrFLapsInfo").textContent = s.laps.length + " tour" + (s.laps.length > 1 ? "s" : "") + " de " + s.dist + " m";
+    $("lrFRate").textContent = rate.toFixed(0) + " %";
+    $("lrFRateInfo").textContent = hits + " réussi" + (hits > 1 ? "s" : "") + " · " + misses + " raté" + (misses > 1 ? "s" : "");
 
     $("lrLapCount").textContent = String(s.laps.length);
     $("lrShootCount").textContent = String(s.shoots.length);
@@ -350,7 +492,12 @@
       ? s.shoots.map(x => {
           const a = x.hits + x.misses;
           const r = a ? Math.round(x.hits / a * 100) : 0;
-          return "<div><span>Tir n°" + x.n + " · " + x.hits + "/" + a + " (" + r + " %)</span><b>" + fmt(x.time) + "</b></div>";
+          let dots = "";
+          for (let i = 0; i < TARGET; i++) dots += "<i class=\"" + (i < x.hits ? "on" : "") + "\"></i>";
+          return "<div class=\"lrShootRow\"><span class=\"lrShootN\">Tir n°" + x.n + "</span>" +
+            "<span class=\"lrDotsRow\">" + dots + "</span>" +
+            "<span class=\"lrShootRate\">" + x.hits + " / " + a + " · " + r + " %</span>" +
+            "<b>" + fmt(x.time) + "</b></div>";
         }).join("")
       : "<p class=\"empty\">Aucune séance de tir.</p>";
 
@@ -369,7 +516,7 @@
             classroom: qrSafe(s.classroom),
             sex: s.sex,
             totalMs: Math.round(total),
-            runMs: Math.round(lapTotal),
+            runMs: Math.round(lapTotal + s.skip),
             shootMs: Math.round(shootTotal),
             laps: s.laps.length,
             lapM: s.dist,
@@ -441,6 +588,15 @@
   $("lrHit").onclick = hit;
   $("lrMiss").onclick = miss;
   $("lrExpire").onclick = endShoot;
+  $("lrUndoLap").onclick = undoLap;
+  $("lrSkip").onclick = skipToShoot;
+  $("lrUndoShot").onclick = undoShot;
+  $("lrUndoFinish").onclick = undoFinish;
+  $("lrToggleLaps").onclick = () => {
+    const p = $("lrLapPanel");
+    const open = p.classList.toggle("hidden") === false;
+    $("lrToggleLaps").textContent = open ? "Masquer le détail des tours" : "Voir le détail des tours";
+  };
   $("lrReset").onclick = resetClick;
   $("lrNew").onclick = () => { s = fresh(s); save(); render(); };
 
