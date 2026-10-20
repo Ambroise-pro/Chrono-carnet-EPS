@@ -757,27 +757,35 @@
         finish.teacherCorrected=true;
       }
     }
-    // Fermer d'abord la validation, puis préparer la suite sans intervention supplémentaire.
+    // Enchaînement déterministe : toujours fermer la modale, puis sélectionner
+    // le prochain coureur non terminé, ou le 500 m suivant.
     dialog.close();
-    if (supervised500() && state.activeRace===race) {
+    if (supervised500()) {
       const next=state.runners.find(r=>r.id!==id && !done(r.id,race));
+      resetClock();
       if (next) {
+        state.activeRace=race;
         state.activeRunnerId=next.id;
-        resetClock();
         save();
         renderPerf();
-        toast("Chrono validé · coureur suivant : "+next.name);
+        toast("PRÊT : "+next.name+" · 500 m n°"+race);
         return;
       }
-      resetClock();
-      save();
       if (race<raceCount() && allDone(race)) {
-        // Les deux coureurs sont passés : ouvrir la course suivante.
-        setRace(race+1);
+        state.activeRace=race+1;
+        state.activeRunnerId=state.runners.find(r=>!done(r.id,race+1))?.id||state.runners[0]?.id||null;
+        save();
+        renderPerf();
+        toast("PRÊT : 500 m n°"+state.activeRace+" · "+(activeRunner()?.name||""));
+        // L'annonce préalable du temps pour la 2e course reste obligatoire.
+        if (race+1===2 && state.runners.some(r=>!r.project2Ms)) {
+          openRaceEstimates(2,()=>{save();renderPerf();});
+        }
         return;
       }
+      save();
       renderPerf();
-      toast("Chrono validé · fin de la série");
+      toast("Les trois 500 m sont terminés · QR professeur disponible");
       return;
     }
     save();
