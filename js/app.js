@@ -776,7 +776,9 @@
     }
     // Enchaînement déterministe : toujours fermer la modale, puis sélectionner
     // le prochain coureur non terminé, ou le 500 m suivant.
-    dialog.close();
+    if (dialog.open) dialog.close();
+    else dialog.removeAttribute("open");
+    dialog.style.cssText="";
     if (supervised500()) {
       const next=state.runners.find(r=>r.id!==id && !done(r.id,race));
       resetClock();
@@ -2768,6 +2770,7 @@
         const race=state.activeRace;
         save();
         renderPerf();
+        // Déclenchement unique, après le rendu, pour CHAQUE coureur et CHAQUE 500.
         openValidation500(r,race,cum);
         return;
       }
@@ -5489,22 +5492,9 @@ return null;
 
   function renderPerf() {
     refreshSupervised500();
-    if (supervised500() && !$("exam500ValidationDialog")?.open) {
-      // File d'attente : chaque arrivée au 500 m exige sa propre validation.
-      // Reconstitue une validation manquante si l'interface a changé de coureur.
-      const race=state.activeRace;
-      const finished=state.runners.find(r=>
-        done(r.id,race) && !runnerStopped(r.id,race) &&
-        !validation500(r.id,race) && rr(r.id,race).length>=requiredSplits(race));
-      if (finished) {
-        const finish=rr(finished.id,race).at(-1);
-        if (finish) openValidation500(finished,race,finish.cumulativeMs);
-      } else {
-        const v=state.exam500Validations.find(x=>x.status==="pending");
-        const runner=v&&state.runners.find(x=>x.id===v.runnerId);
-        if (runner) openValidation500(runner,v.race,v.rawMs);
-      }
-    }
+    // Ne jamais ouvrir un dialogue pendant le rendu : le cycle de rendu
+    // peut se réexécuter et empêcher le passage au coureur suivant.
+    // La validation est déclenchée par l'arrivée elle-même.
 
     const ccf =
       state.mode === "ccf";
