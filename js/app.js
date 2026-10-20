@@ -696,7 +696,15 @@
   }
   function openValidation500(r,race,originalMs) {
     const existing = validation500(r.id,race);
-    if (existing && existing.status !== "pending") return;
+    // Une arrivee chronometree doit toujours afficher la validation professeur.
+    // Ne jamais abandonner silencieusement si une ancienne validation existe.
+    if (existing && existing.status !== "pending") {
+      existing.status="pending";
+      existing.rawMs=Math.round(originalMs);
+      existing.teacherMs=null;
+      existing.deltaMs=null;
+      save();
+    }
     if (!existing) {
       state.exam500Validations.push({
         runnerId:r.id,race,rawMs:Math.round(originalMs),
@@ -719,7 +727,16 @@
     $("exam500CorrectionFields").classList.add("hidden");
     dialog.dataset.runnerId=r.id;
     dialog.dataset.race=String(race);
-    if (!dialog.open) dialog.showModal();
+    dialog.classList.remove("hidden");
+    if (!dialog.open) {
+      try { dialog.showModal(); }
+      catch (error) {
+        // Secours pour iPad : garder les boutons accessibles meme si showModal echoue.
+        dialog.setAttribute("open","");
+        dialog.style.cssText+=";position:fixed;inset:8%;z-index:99999;background:white;overflow:auto;";
+      }
+    }
+    dialog.scrollTop=0;
   }
   function finishValidation500(corrected) {
     const dialog=$("exam500ValidationDialog");
@@ -2747,10 +2764,11 @@
 
       stopClock();
       if (supervised500()) {
-        // Creer la validation AVANT tout rendu ou changement de coureur.
-        openValidation500(r,state.activeRace,cum);
+        // La fin de chaque 500 declenche la modale, pour tous les coureurs.
+        const race=state.activeRace;
         save();
         renderPerf();
+        openValidation500(r,race,cum);
         return;
       }
 
