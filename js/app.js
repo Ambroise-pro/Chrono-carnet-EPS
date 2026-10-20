@@ -639,9 +639,9 @@
 
   function confirmLapRecorded() {
 
-    lapLockedUntil =
-      performance.now() +
-      3000;
+    // Mode examen : verrou court pour ne pas bloquer le coureur suivant.
+    const lockMs = supervised500() ? 350 : 3000;
+    lapLockedUntil = performance.now() + lockMs;
 
     const button =
       $("lapBtn");
@@ -654,17 +654,13 @@
       button.disabled =
         true;
 
-      setTimeout(
-        () => {
-
-          if ($("lapBtn")) {
-            $("lapBtn").textContent =
-              lapActionLabel();
-          }
-
-        },
-        3000
-      );
+      setTimeout(() => {
+        if ($("lapBtn")) {
+          $("lapBtn").textContent=lapActionLabel();
+          // Le bouton était laissé désactivé après le verrouillage de 3 s.
+          $("lapBtn").disabled=!running || performance.now()<lapLockedUntil;
+        }
+      }, lockMs+30);
 
     }
 
@@ -787,6 +783,7 @@
         state.activeRunnerId=next.id;
         save();
         renderPerf();
+        renderTimer();
         toast("PRÊT : "+next.name+" · 500 m n°"+race);
         return;
       }
@@ -2390,9 +2387,10 @@
     lapLockedUntil = 0;
 
     if ($("lapBtn")) {
-      $("lapBtn").textContent =
-        lapActionLabel();
+      $("lapBtn").textContent=lapActionLabel();
+      $("lapBtn").disabled=true;
     }
+    if ($("mainTime")) $("mainTime").textContent=fmt(0);
 
   }
 
@@ -2525,7 +2523,9 @@
       performance.now();
 
     running = true;
-
+    // Réactivation explicite après une validation précédente.
+    lapLockedUntil=0;
+    if ($("lapBtn")) $("lapBtn").disabled=false;
     renderTimer();
 
   }
