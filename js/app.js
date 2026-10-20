@@ -776,12 +776,15 @@
     else dialog.removeAttribute("open");
     dialog.style.cssText="";
     if (supervised500()) {
-      // L'enchaînement ne doit pas dépendre de l'état de l'écran précédent.
+      // Ne sélectionner le suivant qu'après validation de ce coureur.
+      // La course courante est fixée par le dialogue, jamais par un état UI périmé.
       const next=state.runners.find(r=>r.id!==id && !done(r.id,race));
       resetClock();
       if (next) {
         state.activeRace=race;
         state.activeRunnerId=next.id;
+        // Remettre le chrono à zéro après le changement d'élève également.
+        resetClock();
         save();
         renderPerf();
         renderTimer();
@@ -791,8 +794,10 @@
       if (race<raceCount() && allDone(race)) {
         state.activeRace=race+1;
         state.activeRunnerId=state.runners.find(r=>!done(r.id,race+1))?.id||state.runners[0]?.id||null;
+        resetClock();
         save();
         renderPerf();
+        renderTimer();
         toast("PRÊT : 500 m n°"+state.activeRace+" · "+(activeRunner()?.name||""));
         // L'annonce préalable du temps pour la 2e course reste obligatoire.
         if (race+1===2 && state.runners.some(r=>!r.project2Ms)) {
@@ -2507,16 +2512,15 @@
     }
 
 
-    if (
-      done(r.id)
-    ) {
-
-      return toast(
-        "Cette course est déjà terminée pour ce coureur."
-      );
-
+    if (supervised500() && pending500()) {
+      const v=state.exam500Validations.find(x=>x.status==="pending");
+      const target=v&&state.runners.find(x=>x.id===v.runnerId);
+      if (target) openValidation500(target,v.race,v.rawMs);
+      return toast("Validation professeur obligatoire avant le prochain départ.");
     }
-
+    if (done(r.id)) {
+      return toast("Cette course est déjà terminée pour ce coureur.");
+    }
 
     elapsedMs = 0;
 
@@ -2769,9 +2773,10 @@
       if (supervised500()) {
         // Chaque arrivée crée une validation indexée par (coureur, numéro de 500).
         const race=state.activeRace;
-        openValidation500(r,race,cum);
+        // Le 250 m ne déclenche rien ; l'arrivée (2e passage) ouvre la validation.
         save();
         renderPerf();
+        openValidation500(r,race,cum);
         return;
       }
 
@@ -7414,7 +7419,7 @@ return null;
   function renderNetworkStatus() {
     $("offlineBadge").textContent = updatePending
       ? "Mise à jour prête · retour aux paramètres"
-      : navigator.onLine ? "En ligne · v87" : "Hors ligne · v87";
+      : navigator.onLine ? "En ligne · v88" : "Hors ligne · v88";
   }
 
   function applyUpdateWhenSafe() {
@@ -7484,7 +7489,7 @@ return null;
         checkForUpdate();
       })
       .catch(() => {
-        $("offlineBadge").textContent = "Hors ligne non disponible · v87";
+        $("offlineBadge").textContent = "Hors ligne non disponible · v88";
       });
 
     document.addEventListener("visibilitychange", () => {
