@@ -711,7 +711,7 @@
     $("exam500ValidationName").textContent=r.name+" · 500 m n°"+race;
     $("exam500ValidationRaw").textContent=fmt(v.rawMs);
     const obs=$("exam500ValidationObserver");
-    obs.innerHTML='<option value="">Observateur non renseigne</option>'+
+    obs.innerHTML='<option value="">Observateur non renseigné (facultatif)</option>'+
       state.runners.filter(x=>x.id!==r.id).map(x=>'<option value="'+esc(x.id)+'">'+esc(x.name)+'</option>').join("");
     obs.value=v.observerId||"";
     $("exam500TeacherTime").value="";
@@ -727,10 +727,7 @@
     const v=validation500(id,race);
     if (!v || v.status!=="pending") return;
     const observerId=$("exam500ValidationObserver").value;
-    if (!observerId) {
-      $("exam500ValidationError").textContent="Selectionne l'observateur pour enregistrer sa fiabilite.";
-      return;
-    }
+    // L'identification est facultative et ne bloque pas la validation du temps.
     let teacherMs=v.rawMs;
     if (corrected) {
       const val=$("exam500TeacherTime").value.trim();
@@ -742,7 +739,7 @@
         $("exam500ValidationError").textContent="Temps hors limites. Exemple : 1:40.";return;
       }
     }
-    v.observerId=observerId;
+    v.observerId=observerId || null;
     v.teacherMs=teacherMs;
     v.deltaMs=teacherMs-v.rawMs;
     v.status=corrected?"corrected":"approved";
