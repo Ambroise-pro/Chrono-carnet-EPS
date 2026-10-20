@@ -2747,10 +2747,10 @@
 
       stopClock();
       if (supervised500()) {
-        // Ne pas passer au coureur suivant avant l'accord du professeur.
+        // Creer la validation AVANT tout rendu ou changement de coureur.
+        openValidation500(r,state.activeRace,cum);
         save();
         renderPerf();
-        openValidation500(r,state.activeRace,cum);
         return;
       }
 
@@ -5472,9 +5472,20 @@ return null;
   function renderPerf() {
     refreshSupervised500();
     if (supervised500() && !$("exam500ValidationDialog")?.open) {
-      const v=state.exam500Validations.find(x=>x.status==="pending");
-      const runner=v&&state.runners.find(x=>x.id===v.runnerId);
-      if (runner) setTimeout(()=>openValidation500(runner,v.race,v.rawMs),0);
+      // File d'attente : chaque arrivée au 500 m exige sa propre validation.
+      // Reconstitue une validation manquante si l'interface a changé de coureur.
+      const race=state.activeRace;
+      const finished=state.runners.find(r=>
+        done(r.id,race) && !runnerStopped(r.id,race) &&
+        !validation500(r.id,race) && rr(r.id,race).length>=requiredSplits(race));
+      if (finished) {
+        const finish=rr(finished.id,race).at(-1);
+        if (finish) openValidation500(finished,race,finish.cumulativeMs);
+      } else {
+        const v=state.exam500Validations.find(x=>x.status==="pending");
+        const runner=v&&state.runners.find(x=>x.id===v.runnerId);
+        if (runner) openValidation500(runner,v.race,v.rawMs);
+      }
     }
 
     const ccf =
