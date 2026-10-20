@@ -734,8 +734,8 @@
     let teacherMs=v.rawMs;
     if (corrected) {
       const val=$("exam500TeacherTime").value.trim();
-      const match=val.match(/^(?:(\d+):)?(\d{1,2})(?:[.,](\d{1,2}))?$/);
-      if(!match){$("exam500ValidationError").textContent="Saisis le temps enseignant au format 1:40 ou 100.";return;}
+      const match=val.match(/^(?:(\d{1,2}):)?(\d{1,3})(?:[.,](\d{1,2}))?$/);
+      if(!match || (match[1] && Number(match[2])>=60)){$("exam500ValidationError").textContent="Saisis le temps enseignant au format 1:40 ou 100.";return;}
       teacherMs=((Number(match[1]||0)*60)+Number(match[2]))*1000+Number((match[3]||"").padEnd(2,"0"))*10;
       if(!match[1]) teacherMs=Number(match[2])*1000+Number((match[3]||"").padEnd(2,"0"))*10;
       if (teacherMs < 10000 || teacherMs > 900000) {
@@ -5436,6 +5436,11 @@ return null;
 
   function renderPerf() {
     refreshSupervised500();
+    if (supervised500() && !$("exam500ValidationDialog")?.open) {
+      const v=state.exam500Validations.find(x=>x.status==="pending");
+      const runner=v&&state.runners.find(x=>x.id===v.runnerId);
+      if (runner) setTimeout(()=>openValidation500(runner,v.race,v.rawMs),0);
+    }
 
     const ccf =
       state.mode === "ccf";
