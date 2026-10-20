@@ -32,7 +32,8 @@
 
 .lrIntro { margin: 0 0 16px; color: #526174; line-height: 1.5; }
 .lrGrid { grid-template-columns: repeat(2, 1fr); }
-.lrGrid .lrNameField { grid-column: 1 / -1; }
+.lrParams { grid-template-columns: repeat(3, 1fr); }
+.lrSub { margin: 16px 0 10px; font-size: 13px; font-weight: 900; text-transform: uppercase; letter-spacing: .06em; color: var(--lr-accent); }
 .lrGrid input { min-height: 54px; font-size: 18px; }
 .lrPlan { margin: 14px 0 18px; padding: 12px 14px; border-radius: 14px; background: var(--lr-wash); border: 1px solid var(--lr-line); color: var(--lr-ink); font-weight: 700; font-size: 14px; line-height: 1.45; }
 
@@ -94,7 +95,7 @@
 #lrNew { margin-top: 4px; }
 
 @media (max-width: 700px) {
-  .lrGrid { grid-template-columns: 1fr; }
+  .lrGrid, .lrParams { grid-template-columns: 1fr; }
   .lrStats { grid-template-columns: repeat(2, 1fr); }
   .lrDetailGrid { grid-template-columns: 1fr; }
   .lrShotRow { grid-template-columns: 1fr; }

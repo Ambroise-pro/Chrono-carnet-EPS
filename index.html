@@ -38,7 +38,7 @@
 
   <link
     rel="stylesheet"
-    href="/css/laser-run.css?v=1"
+    href="/css/laser-run.css?v=2"
   >
 
   <title>
@@ -1717,10 +1717,19 @@
 
       <div id="lrSetup">
         <p class="lrIntro">La course commence et se termine toujours par des tours. Chaque séance de tir comporte 5 tirs à réussir.</p>
-        <div class="configGrid lrGrid">
-          <label class="field lrNameField">
-            <span>Nom de l’élève</span>
-            <input id="lrName" type="text" autocomplete="off" placeholder="Prénom Nom">
+        <h3 class="lrSub">Élève</h3>
+        <div class="configGrid lrGrid lrIdentity">
+          <label class="field">
+            <span>Nom</span>
+            <input id="lrLast" type="text" autocomplete="off" autocapitalize="characters" placeholder="Nom">
+          </label>
+          <label class="field">
+            <span>Prénom</span>
+            <input id="lrFirst" type="text" autocomplete="off" autocapitalize="words" placeholder="Prénom">
+          </label>
+          <label class="field">
+            <span>Classe</span>
+            <input id="lrClass" type="text" autocomplete="off" autocapitalize="characters" placeholder="Classe">
           </label>
           <label class="field">
             <span>Sexe</span>
@@ -1729,6 +1738,9 @@
               <option value="M">Garçon</option>
             </select>
           </label>
+        </div>
+        <h3 class="lrSub">Course</h3>
+        <div class="configGrid lrGrid lrParams">
           <label class="field">
             <span>Tours entre chaque tir</span>
             <input id="lrLapsPer" type="number" inputmode="numeric" min="1" max="20" value="3">
@@ -1993,7 +2005,7 @@
 
 <script src="/js/app.js?v=89"></script>
 <script src="/js/run-safety-ui.js?v=5"></script>
-<script src="/js/laser-run.js?v=1"></script>
+<script src="/js/laser-run.js?v=2"></script>
 
 
 </body>

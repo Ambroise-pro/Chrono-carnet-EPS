@@ -18,7 +18,9 @@
 
   const fresh = (prev) => ({
     phase: "setup",            // setup | running | shooting | done
-    name: "",
+    last: "",
+    first: "",
+    classroom: "",
     sex: prev ? prev.sex : "F",
     lapsPer: prev ? prev.lapsPer : 3,
     sessions: prev ? prev.sessions : 3,
@@ -60,6 +62,27 @@
     .replace(/\s+/g, " ")
     .trim();
 
+  const displayName = () => s.last.toUpperCase() + " " + s.first;
+
+  function toastMsg(text) {
+    const t = document.createElement("div");
+    t.className = "toast";
+    t.textContent = text;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 2600);
+  }
+
+  // Même identifiant élève que les autres activités (nom|prénom|classe).
+  function studentId() {
+    const k = [s.last, s.first, s.classroom].map(v => String(v).trim().toUpperCase()).join("|");
+    let h = 2166136261;
+    for (let i = 0; i < k.length; i++) {
+      h ^= k.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return "STD-" + (h >>> 0).toString(16).padStart(8, "0");
+  }
+
   const sum = arr => arr.reduce((a, b) => a + b, 0);
   const isLive = () => s.phase === "running" || s.phase === "shooting";
 
@@ -80,7 +103,14 @@
   /* ---------- Actions ---------- */
 
   function start() {
-    s.name = $("lrName").value.trim() || "Anonyme";
+    const last = $("lrLast").value.trim();
+    const first = $("lrFirst").value.trim();
+    const cls = $("lrClass").value.trim().toUpperCase();
+    if (!last || !first) return toastMsg("Nom et prénom sont obligatoires.");
+    if (!cls) return toastMsg("La classe est obligatoire.");
+    s.last = last;
+    s.first = first;
+    s.classroom = cls;
     s.sex = $("lrSex").value === "M" ? "M" : "F";
     s.lapsPer = clampInt($("lrLapsPer").value, 1, 20, 3);
     s.sessions = clampInt($("lrSessions").value, 1, 10, 3);
@@ -233,7 +263,9 @@
     show("lrResults", done);
 
     if (setup) {
-      $("lrName").value = s.name;
+      $("lrLast").value = s.last;
+      $("lrFirst").value = s.first;
+      $("lrClass").value = s.classroom;
       $("lrSex").value = s.sex;
       $("lrLapsPer").value = s.lapsPer;
       $("lrSessions").value = s.sessions;
@@ -250,7 +282,7 @@
       st.textContent = running ? "En course" : "Au tir";
       st.className = "statusPill " + (running ? "lrRun" : "lrShoot");
       $("lrBoard").dataset.phase = s.phase;
-      $("lrRunnerName").textContent = s.name;
+      $("lrRunnerName").textContent = displayName();
       $("lrSessionCount").textContent = s.sessionsDone + " / " + s.sessions;
       $("lrMissCount").textContent = String(s.miss);
 
@@ -298,8 +330,8 @@
     const attempts = hits + misses;
     const rate = attempts ? hits / attempts * 100 : 0;
 
-    $("lrFinalName").textContent = s.name;
-    $("lrFSex").textContent = "· " + (s.sex === "M" ? "Garçon" : "Fille");
+    $("lrFinalName").textContent = displayName();
+    $("lrFSex").textContent = "· " + s.classroom + " · " + (s.sex === "M" ? "Garçon" : "Fille");
     $("lrFTotal").textContent = fmt(total);
     $("lrFRun").textContent = fmt(lapTotal);
     $("lrFShoot").textContent = fmt(shootTotal);
@@ -328,11 +360,22 @@
       try {
         new QRCode(box, {
           text: JSON.stringify({
-            nom: qrSafe(s.name),
-            sexe: s.sex,
-            tempsTotal: fmt(total),
-            tempsTir: fmt(shootTotal),
-            efficacite: rate.toFixed(1) + "%"
+            type: "DF_TRAINING_RESULT",
+            v: 1,
+            tool: "laserrun",
+            studentId: studentId(),
+            last: qrSafe(s.last),
+            first: qrSafe(s.first),
+            classroom: qrSafe(s.classroom),
+            sex: s.sex,
+            totalMs: Math.round(total),
+            runMs: Math.round(lapTotal),
+            shootMs: Math.round(shootTotal),
+            laps: s.laps.length,
+            lapM: s.dist,
+            hits: hits,
+            attempts: attempts,
+            createdAt: new Date().toISOString()
           }),
           width: 200,
           height: 200,
@@ -366,7 +409,7 @@
     const hint = $("laserRunCardHint");
     if (!hint) return;
     hint.textContent = isLive()
-      ? "Course en cours · " + s.name + " — appuie pour reprendre."
+      ? "Course en cours · " + displayName() + " — appuie pour reprendre."
       : "Observation : tours, séances de tir, temps et QR professeur.";
   }
 
@@ -401,10 +444,12 @@
   $("lrReset").onclick = resetClick;
   $("lrNew").onclick = () => { s = fresh(s); save(); render(); };
 
-  ["lrName", "lrSex", "lrLapsPer", "lrSessions", "lrDist"].forEach(id => {
+  ["lrLast", "lrFirst", "lrClass", "lrSex", "lrLapsPer", "lrSessions", "lrDist"].forEach(id => {
     $(id).addEventListener("input", () => {
       if (s.phase !== "setup") return;
-      s.name = $("lrName").value;
+      s.last = $("lrLast").value;
+      s.first = $("lrFirst").value;
+      s.classroom = $("lrClass").value.toUpperCase();
       s.sex = $("lrSex").value === "M" ? "M" : "F";
       s.lapsPer = clampInt($("lrLapsPer").value, 1, 20, s.lapsPer);
       s.sessions = clampInt($("lrSessions").value, 1, 10, s.sessions);
