@@ -67,6 +67,8 @@
     runners: [],
     results: [],
     timedRuns: [],
+    exam500Supervised: false,
+    exam500Validations: [],
 
     activeRace: 1,
     activeRunnerId: null,
@@ -169,6 +171,9 @@
         : "custom";
   }
 
+
+  state.exam500Supervised = !!state.exam500Supervised;
+  if (!Array.isArray(state.exam500Validations)) state.exam500Validations = [];
 
   let running = false;
   let startedAt = 0;
@@ -674,6 +679,93 @@
      RESULTATS CLASSIQUES / CCF
   ========================================================= */
 
+
+  /* Examen surveille : le temps brut et la validation sont conserves separement. */
+  const supervised500 = () => isExam500() && state.exam500Supervised;
+  const validation500 = (id,race) => state.exam500Validations.find(v => v.runnerId === id && v.race === race);
+  const pending500 = () => supervised500() && state.exam500Validations.some(v => v.status === "pending");
+  function refreshSupervised500() {
+    const on = supervised500();
+    document.body.classList.toggle("supervised500",on);
+    const panel = $("exam500SupervisionConfig");
+    if (panel) panel.classList.toggle("hidden",!isExam500());
+    const toggle = $("exam500SupervisionToggle");
+    if (toggle) toggle.checked = !!state.exam500Supervised;
+    const banner = $("exam500SupervisionBanner");
+    if (banner) banner.classList.toggle("hidden",!on);
+  }
+  function openValidation500(r,race,originalMs) {
+    const existing = validation500(r.id,race);
+    if (existing && existing.status !== "pending") return;
+    if (!existing) {
+      state.exam500Validations.push({
+        runnerId:r.id,race,rawMs:Math.round(originalMs),
+        teacherMs:null,deltaMs:null,status:"pending",
+        observerId:state.runners.find(x=>x.id!==r.id)?.id||null
+      });
+      save();
+    }
+    const v=validation500(r.id,race);
+    const dialog=$("exam500ValidationDialog");
+    if (!dialog) return;
+    $("exam500ValidationName").textContent=r.name+" · 500 m n°"+race;
+    $("exam500ValidationRaw").textContent=fmt(v.rawMs);
+    const obs=$("exam500ValidationObserver");
+    obs.innerHTML='<option value="">Observateur non renseigne</option>'+
+      state.runners.filter(x=>x.id!==r.id).map(x=>'<option value="'+esc(x.id)+'">'+esc(x.name)+'</option>').join("");
+    obs.value=v.observerId||"";
+    $("exam500TeacherTime").value="";
+    $("exam500ValidationError").textContent="";
+    $("exam500CorrectionFields").classList.add("hidden");
+    dialog.dataset.runnerId=r.id;
+    dialog.dataset.race=String(race);
+    if (!dialog.open) dialog.showModal();
+  }
+  function finishValidation500(corrected) {
+    const dialog=$("exam500ValidationDialog");
+    const id=dialog.dataset.runnerId,race=Number(dialog.dataset.race);
+    const v=validation500(id,race);
+    if (!v || v.status!=="pending") return;
+    const observerId=$("exam500ValidationObserver").value;
+    if (!observerId) {
+      $("exam500ValidationError").textContent="Selectionne l'observateur pour enregistrer sa fiabilite.";
+      return;
+    }
+    let teacherMs=v.rawMs;
+    if (corrected) {
+      const val=$("exam500TeacherTime").value.trim();
+      const match=val.match(/^(?:(\d+):)?(\d{1,2})(?:[.,](\d{1,2}))?$/);
+      if(!match){$("exam500ValidationError").textContent="Saisis le temps enseignant au format 1:40 ou 100.";return;}
+      teacherMs=((Number(match[1]||0)*60)+Number(match[2]))*1000+Number((match[3]||"").padEnd(2,"0"))*10;
+      if(!match[1]) teacherMs=Number(match[2])*1000+Number((match[3]||"").padEnd(2,"0"))*10;
+      if (teacherMs < 10000 || teacherMs > 900000) {
+        $("exam500ValidationError").textContent="Temps hors limites. Exemple : 1:40.";return;
+      }
+    }
+    v.observerId=observerId;
+    v.teacherMs=teacherMs;
+    v.deltaMs=teacherMs-v.rawMs;
+    v.status=corrected?"corrected":"approved";
+    v.validatedAt=new Date().toISOString();
+    if (corrected) {
+      const arr=rr(id,race);
+      const finish=arr.find(x=>x.passage===2);
+      if (finish) {
+        finish.cumulativeMs=teacherMs;
+        finish.lapMs=Math.max(0,teacherMs-(arr[0]?.cumulativeMs||0));
+        finish.speed=finish.lapMs>0?spd(250,finish.lapMs):0;
+        finish.teacherCorrected=true;
+      }
+    }
+    save();
+    dialog.close();
+    renderPerf();
+  }
+  function observerAudit500(id) {
+    return state.exam500Validations.filter(v=>v.observerId===id && v.status!=="pending")
+      .map(v=>({r:v.race,d:Math.round((v.deltaMs||0)/1000),s:v.status}));
+  }
+
   const rr = (
     id,
     race = state.activeRace
@@ -1078,6 +1170,7 @@
   let setupStep = "cover";
 
   function renderSetupWizard() {
+    refreshSupervised500();
     const cover = setupStep === "cover";
     document.body.classList.toggle("setup-cover", cover && state.view === "setup");
     const tools = setupStep === "tools";
@@ -2623,6 +2716,7 @@
     ) {
 
       stopClock();
+      if (supervised500()) openValidation500(r,state.activeRace,cum);
 
 
       if (
@@ -3280,6 +3374,7 @@ return null;
 
 
   function setRace(race) {
+    if (pending500()) return toast("Valide les chronos en attente avec le professeur.");
 
     if (
       running
@@ -4792,7 +4887,12 @@ return null;
           r.stoppedAt ||
           null,
         createdAt:
-          new Date().toISOString()
+          new Date().toISOString(),
+        ...(state.exam500Supervised ? {
+          supervised: true,
+          validation: [1,2,3].map(n=>{const v=validation500(r.id,n);return v ? [n,v.status==="pending"?"P":v.status==="corrected"?"C":"O",Math.round((v.deltaMs||0)/1000)] : [n,"P",0];}),
+          observerAudit: observerAudit500(r.id)
+        } : {})
       };
 
     }
@@ -5140,11 +5240,7 @@ return null;
         .filter(
           r =>
             [1,2,3].every(
-              race =>
-                done(
-                  r.id,
-                  race
-                )
+              race => done(r.id,race) && (!supervised500() || (validation500(r.id,race)?.status !== "pending" && !!validation500(r.id,race)))
             )
         )
         .forEach(
@@ -5265,7 +5361,8 @@ return null;
 
       box.innerHTML =
         "<h3>Examen 3 × 500 m</h3>" +
-        "<p>Résultats enregistrés. La note sera calculée dans DemiFond Scan après lecture du QR professeur.</p>";
+        "<p>Résultats enregistrés. La note sera calculée dans DemiFond Scan après lecture du QR professeur.</p>" +
+        (supervised500() ? state.runners.map(r=>"<p><b>"+esc(r.name)+"</b> · "+[1,2,3].map(n=>{const v=validation500(r.id,n);return "C"+n+": "+(!v?"à courir":v.status==="pending"?"validation attendue":v.status==="corrected"?"PROF "+fmt(v.teacherMs)+" (écart "+Math.round(v.deltaMs/1000)+" s)":"OK");}).join(" · ")+"</p>").join("") : "");
 
       box.classList.remove("hidden");
       $("teacherRevealBtn").classList.add("hidden");
@@ -5338,6 +5435,7 @@ return null;
   ========================================================= */
 
   function renderPerf() {
+    refreshSupervised500();
 
     const ccf =
       state.mode === "ccf";
@@ -5628,6 +5726,7 @@ return null;
 
 
   function render() {
+    refreshSupervised500();
 
     document.body.classList.toggle("setup-tools", state.view === "setup" && setupStep === "tools");
 
@@ -6436,7 +6535,7 @@ return null;
 
               `<td>${fmt(x.lapMs)}</td>` +
 
-              `<td>${fmt(x.cumulativeMs)}</td>` +
+              `<td style="${x.teacherCorrected?"color:#be123c;font-weight:900":""}">${fmt(x.cumulativeMs)}${x.teacherCorrected?" · PROF":""}</td>` +
 
               `<td>${x.speed.toFixed(1)} km/h</td>` +
 
@@ -6773,6 +6872,26 @@ return null;
 
     };
 
+
+
+  if ($("exam500SupervisionToggle")) $("exam500SupervisionToggle").onchange = e => {
+    if (state.exam500Validations.length && !e.target.checked) {
+      e.target.checked=true;
+      toast("Mode surveille deja utilise : conserve pour cette evaluation.");
+      return;
+    }
+    state.exam500Supervised=e.target.checked;
+    save();render();
+  };
+  if ($("exam500ValidationOk")) $("exam500ValidationOk").onclick=()=>finishValidation500(false);
+  if ($("exam500ValidationNo")) $("exam500ValidationNo").onclick=()=>{
+    $("exam500CorrectionFields").classList.remove("hidden");
+    $("exam500TeacherTime").focus();
+  };
+  if ($("exam500ValidationConfirm")) $("exam500ValidationConfirm").onclick=()=>finishValidation500(true);
+  if ($("exam500ValidationDialog")) $("exam500ValidationDialog").addEventListener("cancel",e=>{
+    e.preventDefault();toast("Validation obligatoire : demande l'enseignant.");
+  });
 
   /* Mode principal */
 
