@@ -757,19 +757,30 @@
         finish.teacherCorrected=true;
       }
     }
-    // Selectionner le prochain coureur uniquement apres validation professeur.
+    // Fermer d'abord la validation, puis préparer la suite sans intervention supplémentaire.
+    dialog.close();
     if (supervised500() && state.activeRace===race) {
-      const next=nextRunnerSameRace(id);
+      const next=state.runners.find(r=>r.id!==id && !done(r.id,race));
       if (next) {
         state.activeRunnerId=next.id;
         resetClock();
-        toast("Chrono validé · au tour de "+next.name);
-      } else {
-        toast("Chrono validé · course "+race+" terminée");
+        save();
+        renderPerf();
+        toast("Chrono validé · coureur suivant : "+next.name);
+        return;
       }
+      resetClock();
+      save();
+      if (race<raceCount() && allDone(race)) {
+        // Les deux coureurs sont passés : ouvrir la course suivante.
+        setRace(race+1);
+        return;
+      }
+      renderPerf();
+      toast("Chrono validé · fin de la série");
+      return;
     }
     save();
-    dialog.close();
     renderPerf();
   }
   function observerAudit500(id) {
