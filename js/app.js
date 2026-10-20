@@ -732,9 +732,12 @@
     if (corrected) {
       const val=$("exam500TeacherTime").value.trim();
       const match=val.match(/^(?:(\d{1,2}):)?(\d{1,3})(?:[.,](\d{1,2}))?$/);
-      if(!match || (match[1] && Number(match[2])>=60)){$("exam500ValidationError").textContent="Saisis le temps enseignant au format 1:40 ou 100.";return;}
-      teacherMs=((Number(match[1]||0)*60)+Number(match[2]))*1000+Number((match[3]||"").padEnd(2,"0"))*10;
-      if(!match[1]) teacherMs=Number(match[2])*1000+Number((match[3]||"").padEnd(2,"0"))*10;
+      if(!match || (match[1] && Number(match[2])>=60)){$("exam500ValidationError").textContent="Saisis 135 pour 1 min 35, ou 1:35.";return;}
+      const fraction=Number((match[3]||"").padEnd(2,"0"))*10;
+      if(match[1]) teacherMs=(Number(match[1])*60+Number(match[2]))*1000+fraction;
+      else if(!match[3] && val.length===3 && Number(val[0])>0 && Number(val.slice(1))<60)
+        teacherMs=(Number(val[0])*60+Number(val.slice(1)))*1000;
+      else teacherMs=Number(match[2])*1000+fraction;
       if (teacherMs < 10000 || teacherMs > 900000) {
         $("exam500ValidationError").textContent="Temps hors limites. Exemple : 1:40.";return;
       }
@@ -752,6 +755,17 @@
         finish.lapMs=Math.max(0,teacherMs-(arr[0]?.cumulativeMs||0));
         finish.speed=finish.lapMs>0?spd(250,finish.lapMs):0;
         finish.teacherCorrected=true;
+      }
+    }
+    // Selectionner le prochain coureur uniquement apres validation professeur.
+    if (supervised500() && state.activeRace===race) {
+      const next=nextRunnerSameRace(id);
+      if (next) {
+        state.activeRunnerId=next.id;
+        resetClock();
+        toast("Chrono validé · au tour de "+next.name);
+      } else {
+        toast("Chrono validé · course "+race+" terminée");
       }
     }
     save();
@@ -2713,8 +2727,13 @@
     ) {
 
       stopClock();
-      if (supervised500()) openValidation500(r,state.activeRace,cum);
-
+      if (supervised500()) {
+        // Ne pas passer au coureur suivant avant l'accord du professeur.
+        save();
+        renderPerf();
+        openValidation500(r,state.activeRace,cum);
+        return;
+      }
 
       if (
         isExamMode()
