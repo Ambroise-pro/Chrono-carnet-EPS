@@ -788,6 +788,7 @@
         save();
         renderPerf();
         renderTimer();
+        if ($("startBtn")) $("startBtn").disabled=false;
         toast("PRÊT : "+next.name+" · 500 m n°"+race);
         return;
       }
@@ -798,6 +799,7 @@
         save();
         renderPerf();
         renderTimer();
+        if ($("startBtn")) $("startBtn").disabled=false;
         toast("PRÊT : 500 m n°"+state.activeRace+" · "+(activeRunner()?.name||""));
         // L'annonce préalable du temps pour la 2e course reste obligatoire.
         if (race+1===2 && state.runners.some(r=>!r.project2Ms)) {
@@ -7419,7 +7421,7 @@ return null;
   function renderNetworkStatus() {
     $("offlineBadge").textContent = updatePending
       ? "Mise à jour prête · retour aux paramètres"
-      : navigator.onLine ? "En ligne · v88" : "Hors ligne · v88";
+      : navigator.onLine ? "En ligne · v89" : "Hors ligne · v89";
   }
 
   function applyUpdateWhenSafe() {
@@ -7489,7 +7491,7 @@ return null;
         checkForUpdate();
       })
       .catch(() => {
-        $("offlineBadge").textContent = "Hors ligne non disponible · v88";
+        $("offlineBadge").textContent = "Hors ligne non disponible · v89";
       });
 
     document.addEventListener("visibilitychange", () => {
