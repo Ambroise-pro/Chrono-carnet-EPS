@@ -776,6 +776,7 @@
     else dialog.removeAttribute("open");
     dialog.style.cssText="";
     if (supervised500()) {
+      // L'enchaînement ne doit pas dépendre de l'état de l'écran précédent.
       const next=state.runners.find(r=>r.id!==id && !done(r.id,race));
       resetClock();
       if (next) {
@@ -795,7 +796,7 @@
         toast("PRÊT : 500 m n°"+state.activeRace+" · "+(activeRunner()?.name||""));
         // L'annonce préalable du temps pour la 2e course reste obligatoire.
         if (race+1===2 && state.runners.some(r=>!r.project2Ms)) {
-          openRaceEstimates(2,()=>{save();renderPerf();});
+          openRaceEstimates(2,()=>{resetClock();save();renderPerf();});
         }
         return;
       }
@@ -2766,12 +2767,11 @@
 
       stopClock();
       if (supervised500()) {
-        // La fin de chaque 500 declenche la modale, pour tous les coureurs.
+        // Chaque arrivée crée une validation indexée par (coureur, numéro de 500).
         const race=state.activeRace;
+        openValidation500(r,race,cum);
         save();
         renderPerf();
-        // Déclenchement unique, après le rendu, pour CHAQUE coureur et CHAQUE 500.
-        openValidation500(r,race,cum);
         return;
       }
 
@@ -5492,9 +5492,17 @@ return null;
 
   function renderPerf() {
     refreshSupervised500();
-    // Ne jamais ouvrir un dialogue pendant le rendu : le cycle de rendu
-    // peut se réexécuter et empêcher le passage au coureur suivant.
-    // La validation est déclenchée par l'arrivée elle-même.
+    // Récupération non intrusive d'une validation en attente (p.ex. après
+    // fermeture d'un autre dialogue). N'ouvre jamais synchroniquement
+    // la modale au milieu du rendu.
+    if (supervised500() && !$("exam500ValidationDialog")?.open) {
+      const pending=state.exam500Validations.find(v=>v.status==="pending");
+      const pendingRunner=pending&&state.runners.find(r=>r.id===pending.runnerId);
+      if (pendingRunner) queueMicrotask(()=>{
+        if (!$("exam500ValidationDialog")?.open && validation500(pending.runnerId,pending.race)?.status==="pending")
+          openValidation500(pendingRunner,pending.race,pending.rawMs);
+      });
+    }
 
     const ccf =
       state.mode === "ccf";
