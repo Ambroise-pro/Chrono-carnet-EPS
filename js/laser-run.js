@@ -504,33 +504,45 @@
     const box = $("lrQrBox");
     box.innerHTML = "";
     if (window.QRCode) {
-      try {
-        new QRCode(box, {
-          text: JSON.stringify({
-            type: "DF_TRAINING_RESULT",
-            v: 1,
-            tool: "laserrun",
-            studentId: studentId(),
-            last: qrSafe(s.last),
-            first: qrSafe(s.first),
-            classroom: qrSafe(s.classroom),
-            sex: s.sex,
-            totalMs: Math.round(total),
-            runMs: Math.round(lapTotal + s.skip),
-            shootMs: Math.round(shootTotal),
-            laps: s.laps.length,
-            lapM: s.dist,
-            hits: hits,
-            attempts: attempts,
-            createdAt: new Date().toISOString()
-          }),
-          width: 200,
-          height: 200,
-          correctLevel: QRCode.CorrectLevel.M
-        });
-      } catch (error) {
-        console.error("QR Laser Run", error);
-        box.innerHTML = "<p class=\"empty\">Impossible de générer le QR code.</p>";
+      const payload = {
+        type: "DF_TRAINING_RESULT",
+        v: 1,
+        tool: "laserrun",
+        studentId: studentId(),
+        last: qrSafe(s.last),
+        first: qrSafe(s.first),
+        classroom: qrSafe(s.classroom),
+        sex: s.sex,
+        totalMs: Math.round(total),
+        runMs: Math.round(lapTotal + s.skip),
+        shootMs: Math.round(shootTotal),
+        laps: s.laps.length,
+        lapM: s.dist,
+        lapsMs: s.laps.map(t => Math.round(t / 10) * 10),   // temps de chaque tour
+        hits: hits,
+        attempts: attempts,
+        createdAt: new Date().toISOString()
+      };
+      // Un QR a une capacité limitée : on essaie d'abord le plus complet,
+      // puis on allège (correction d'erreur basse, puis champs secondaires).
+      const attempts_ = [
+        [QRCode.CorrectLevel.M, payload],
+        [QRCode.CorrectLevel.L, payload],
+        [QRCode.CorrectLevel.L, Object.assign({}, payload, { createdAt: undefined, runMs: undefined, shootMs: undefined })]
+      ];
+      let ok = false;
+      for (const [level, data] of attempts_) {
+        try {
+          box.innerHTML = "";
+          new QRCode(box, { text: JSON.stringify(data), width: 220, height: 220, correctLevel: level });
+          ok = true;
+          break;
+        } catch (error) {
+          console.warn("QR Laser Run : capacité dépassée, version allégée", error);
+        }
+      }
+      if (!ok) {
+        box.innerHTML = "<p class=\"empty\">Trop de tours pour un QR code : réduis le nombre de tours.</p>";
       }
     } else {
       box.innerHTML = "<p class=\"empty\">Générateur QR indisponible. Ouvre une fois l’application avec Internet.</p>";
